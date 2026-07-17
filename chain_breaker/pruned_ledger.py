@@ -274,16 +274,27 @@ class PrunedLedger:
         archive_size = len(self.archived) * 200    # ~200 bytes per archived
         pruned_size = len(self.pruned_hashes) * 64  # Just hash
         
+        total_size = full_size + archive_size + pruned_size
+        height = self.height
+        
+        # Avoid division by zero
+        if height <= 0 or total_size == 0:
+            savings = "0%"
+        else:
+            full_chain_size = height * 1024
+            savings_pct = ((full_chain_size - total_size) / full_chain_size * 100)
+            savings = f"{savings_pct:.1f}%"
+        
         return {
-            'height': self.height,
+            'height': height,
             'full_blocks': len(self.full_chain),
             'archived_blocks': len(self.archived),
             'pruned_blocks': len(self.pruned_hashes),
             'estimated_full_mb': full_size / (1024 * 1024),
             'estimated_archive_mb': archive_size / (1024 * 1024),
             'estimated_pruned_mb': pruned_size / (1024 * 1024),
-            'total_estimated_mb': (full_size + archive_size + pruned_size) / (1024 * 1024),
-            'savings_vs_full': f"{((self.height * 1024 - full_size) / (self.height * 1024) * 100):.1f}%",
+            'total_estimated_mb': total_size / (1024 * 1024),
+            'savings_vs_full': savings,
         }
 
 
