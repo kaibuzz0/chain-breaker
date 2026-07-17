@@ -145,10 +145,15 @@ def create_genesis_block() -> Block:
         "timestamp": genesis_time,
     }
     
+    # Calculate actual merkle root for genesis transaction
+    tx_hash = HashEngine.hash_object(genesis_tx)
+    merkle = MerkleTree([tx_hash])
+    merkle_root = HashEngine.hash_to_hex(merkle.root) if merkle.root else "0" * 64
+    
     header = BlockHeader(
         version=1,
         prev_hash="0" * 64,
-        merkle_root="0" * 64,  # Simplified for genesis
+        merkle_root=merkle_root,
         timestamp=genesis_time,
         difficulty=1,  # Easy for genesis
         nonce=0,
