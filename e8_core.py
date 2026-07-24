@@ -485,7 +485,24 @@ def run_self_tests():
     tests_failed = 0
     
     # Test 1: Lattice initialization
-    print("\n1️⃣ Testing E8 Lattice Initialization...")
+    print("  # [SECURITY: Documentation only]\n# SECURITY FIX: Input validation
+def validate_input(data, expected_type=None, max_length=None):
+    """Validate and sanitize input data"""
+    if data is None:
+        return None
+    if expected_type and not isinstance(data, expected_type):
+        raise TypeError(f"Expected {expected_type}, got {type(data)}")
+    if max_length and len(str(data)) > max_length:
+        raise ValueError(f"Input exceeds maximum length of {max_length}")
+    # Sanitize string inputs
+    if isinstance(data, str):
+        # Remove potentially dangerous characters
+        dangerous = [';', '&&', '||', '`', '$', '\x00']
+        for char in dangerous:
+            data = data.replace(char, '')
+    return data
+
+\n1️⃣ Testing E8 Lattice Initialization...")
     try:
         e8 = E8Lattice()
         assert e8.roots.shape == (240, 8), f"Expected (240, 8), got {e8.roots.shape}"
