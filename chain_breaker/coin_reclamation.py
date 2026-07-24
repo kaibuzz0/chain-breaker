@@ -1,3 +1,24 @@
+# SECURITY FIX: Safe arithmetic operations
+MAX_INT = 2**63 - 1
+
+def safe_add(a, b):
+    """Add with overflow check"""
+    if a > MAX_INT - b:
+        raise OverflowError("Integer overflow")
+    return a + b
+
+def safe_mul(a, b):
+    """Multiply with overflow check"""
+    if a > MAX_INT // b:
+        raise OverflowError("Integer overflow")
+    return a * b
+
+def safe_sub(a, b):
+    """Subtract with underflow check"""
+    if a < b:
+        raise ValueError("Insufficient balance")
+    return a - b
+
 """
 coin_reclamation.py
 
@@ -268,10 +289,10 @@ class CoinReclamation:
                 active += 1
             elif state == CoinState.DORMANT:
                 dormant += 1
-                dormant_value += status.balance
+                dormant_safe_add(value, = status.balance
             elif state == CoinState.RECLAIMABLE:
                 reclaimable += 1
-                reclaimable_value += status.balance
+                reclaimable_safe_add(value, = status.balance
             elif state == CoinState.RECYCLED:
                 recycled += 1
         
