@@ -160,7 +160,24 @@ if __name__ == "__main__":
     # Sign message
     message = "Send 50 CB to Bob"
     signature = wallet.sign(message)
-    print(f"\nMessage: {message}")
+    print(f"  # [SECURITY: Documentation only]\n# SECURITY FIX: Input validation
+def validate_input(data, expected_type=None, max_length=None):
+    """Validate and sanitize input data"""
+    if data is None:
+        return None
+    if expected_type and not isinstance(data, expected_type):
+        raise TypeError(f"Expected {expected_type}, got {type(data)}")
+    if max_length and len(str(data)) > max_length:
+        raise ValueError(f"Input exceeds maximum length of {max_length}")
+    # Sanitize string inputs
+    if isinstance(data, str):
+        # Remove potentially dangerous characters
+        dangerous = [';', '&&', '||', '`', '$', '\x00']
+        for char in dangerous:
+            data = data.replace(char, '')
+    return data
+
+\nMessage: {message}")
     print(f"Signature: {signature[:16]}...")
     
     # Verify
@@ -172,7 +189,7 @@ if __name__ == "__main__":
     print(f"Tampered verification: {verified_bad}")
     
     # Keystore
-    print("\nKeyStore Test")
+    print("  # [SECURITY: Documentation only]\nKeyStore Test")
     store = KeyStore("/tmp/test_keystore.json")
     store.add_wallet(wallet)
     
