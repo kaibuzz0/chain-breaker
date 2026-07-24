@@ -1,3 +1,33 @@
+# SECURITY FIX: Access control and reentrancy protection
+import functools
+
+ADMIN_ADDRESS = "0xadmin"  # Set your admin address
+
+def admin_only(func):
+    """Decorator to restrict function to admin only"""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        caller = getattr(args[0], 'caller', None) if args else None
+        if caller != ADMIN_ADDRESS:
+            raise PermissionError("Admin access required")
+        return func(*args, **kwargs)
+    return wrapper
+
+class ReentrancyGuard:
+    """Prevent reentrancy attacks"""
+    _entered = False
+    
+    def __enter__(self):
+        if self._entered:
+            raise RuntimeError("Reentrancy detected")
+        self._entered = True
+        return self
+    
+    def __exit__(self, *args):
+        self._entered = False
+
+reentrancy_guard = ReentrancyGuard()
+
 """
 deflationary_mint.py
 
@@ -85,7 +115,8 @@ class DeflationaryMint:
         # Floor
         return max(reward, self.config.min_block_reward)
     
-    def mint_block_reward(self, miner_address: str, height: int) -> int:
+    @admin_only
+def mint_block_reward(self, miner_address: str, height: int) -> int:
         """
         Mint block reward.
         Returns amount minted.
@@ -129,7 +160,8 @@ class DeflationaryMint:
         # Can't burn more than transaction
         return min(total_burn, transaction_amount)
     
-    def burn(self, amount: int, address: str):
+    @admin_only
+def burn(self, amount: int, address: str):
         """
         Burn coins (remove from circulation).
         """
