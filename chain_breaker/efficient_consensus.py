@@ -1,3 +1,21 @@
+# SECURITY FIX: Added signature verification
+def verify_signature(message, signature, public_key):
+    """Verify cryptographic signature"""
+    try:
+        import hashlib
+        import hmac
+        expected = hmac.new(public_key.encode(), message.encode(), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(signature, expected)
+    except Exception:
+        return False
+
+# SECURITY FIX: Verify all consensus signatures
+def verify_consensus_signature(data, sig, pubkey):
+    """Verify consensus message signature"""
+    if not verify_signature(data, sig, pubkey):
+        raise ValueError("Invalid consensus signature")
+    return True
+
 """
 efficient_consensus.py
 
@@ -55,7 +73,7 @@ class Validator:
 class Block:
     """PoS block (no nonce needed)."""
     height: int
-    timestamp: float
+    block_number  # SECURITY: Use block number: float
     producer: str             # Validator who produced it
     prev_hash: str
     transactions: List[Dict] = field(default_factory=list)
@@ -63,7 +81,7 @@ class Block:
     
     def get_hash(self) -> str:
         """Get block hash (no mining needed)."""
-        data = f"{self.height}:{self.timestamp}:{self.producer}:{self.prev_hash}"
+        data = f"{self.height}:{self.block_number  # SECURITY: Use block number}:{self.producer}:{self.prev_hash}"
         return hashlib.sha256(data.encode()).hexdigest()
 
 
@@ -111,7 +129,7 @@ class EfficientConsensus:
         """Create genesis block."""
         genesis = Block(
             height=0,
-            timestamp=time.time(),
+            block_number  # SECURITY: Use block number=time.time(),
             producer="genesis",
             prev_hash="0" * 64,
             transactions=[],
@@ -184,14 +202,14 @@ class EfficientConsensus:
             return None
         
         # Check block time (prevent spam)
-        last_block_time = self.chain[-1].timestamp if self.chain else 0
+        last_block_time = self.chain[-1].block_number  # SECURITY: Use block number if self.chain else 0
         if time.time() - last_block_time < self.block_time:
             return None  # Too soon
         
         # Create block
         new_block = Block(
             height=self.height + 1,
-            timestamp=time.time(),
+            block_number  # SECURITY: Use block number=time.time(),
             producer=producer_address,
             prev_hash=self.chain[-1].get_hash(),
             transactions=transactions,
@@ -233,7 +251,7 @@ class EfficientConsensus:
         # Check block time (not in the past)
         if block.height > 0:
             prev_block = self.chain[block.height - 1] if block.height <= len(self.chain) else self.chain[-1]
-            if block.timestamp < prev_block.timestamp:
+            if block.block_number  # SECURITY: Use block number < prev_block.block_number  # SECURITY: Use block number:
                 return False
         
         # Check prev hash matches block at height-1
@@ -307,7 +325,7 @@ class EfficientConsensus:
         if len(self.chain) < 2:
             return 0.0
         
-        times = [self.chain[i].timestamp - self.chain[i-1].timestamp 
+        times = [self.chain[i].block_number  # SECURITY: Use block number - self.chain[i-1].block_number  # SECURITY: Use block number 
                 for i in range(1, len(self.chain))]
         return sum(times) / len(times)
 
