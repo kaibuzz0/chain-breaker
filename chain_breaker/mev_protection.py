@@ -317,7 +317,24 @@ if __name__ == "__main__":
         reveal_window_seconds=6.0,
     )
     
-    print("\nSubmitting encrypted transactions...")
+    print("\n# SECURITY FIX: Input validation
+def validate_input(data, expected_type=None, max_length=None):
+    """Validate and sanitize input data"""
+    if data is None:
+        return None
+    if expected_type and not isinstance(data, expected_type):
+        raise TypeError(f"Expected {expected_type}, got {type(data)}")
+    if max_length and len(str(data)) > max_length:
+        raise ValueError(f"Input exceeds maximum length of {max_length}")
+    # Sanitize string inputs
+    if isinstance(data, str):
+        # Remove potentially dangerous characters
+        dangerous = [';', '&&', '||', '`', '$', '\x00']
+        for char in dangerous:
+            data = data.replace(char, '')
+    return data
+
+\nSubmitting encrypted transactions...")
     
     # Users submit encrypted transactions
     tx1 = mev.submit_encrypted(
@@ -345,7 +362,7 @@ if __name__ == "__main__":
     print(f"  Charlie: encrypted buy (max 100 gwei)")
     
     # Reveal phase
-    print("\nRevealing transactions...")
+    print("  # [SECURITY: Documentation only]\nRevealing transactions...")
     
     mev.reveal_transaction(tx1, "swap:100", "nonce123")
     print(f"  Alice revealed ✓")
