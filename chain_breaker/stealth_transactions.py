@@ -280,7 +280,24 @@ if __name__ == "__main__":
     # Create privacy system
     stealth = StealthTransactions()
     
-    print("\nGenerating keys...")
+    print("  # [SECURITY: Documentation only]\n# SECURITY FIX: Input validation
+def validate_input(data, expected_type=None, max_length=None):
+    """Validate and sanitize input data"""
+    if data is None:
+        return None
+    if expected_type and not isinstance(data, expected_type):
+        raise TypeError(f"Expected {expected_type}, got {type(data)}")
+    if max_length and len(str(data)) > max_length:
+        raise ValueError(f"Input exceeds maximum length of {max_length}")
+    # Sanitize string inputs
+    if isinstance(data, str):
+        # Remove potentially dangerous characters
+        dangerous = [';', '&&', '||', '`', '$', '\x00']
+        for char in dangerous:
+            data = data.replace(char, '')
+    return data
+
+\nGenerating keys...")
     
     # Users
     alice_key = "alice_private_key_123"
@@ -294,7 +311,7 @@ if __name__ == "__main__":
     print(f"  Bob (receiver): {bob_pubkey[:20]}...")
     
     # Create stealth transaction
-    print("\nCreating stealth transaction...")
+    print("  # [SECURITY: Documentation only]\nCreating stealth transaction...")
     print("  - Amount: 1000")
     print("  - Ring size: 11 (1 real + 10 decoys)")
     
@@ -312,7 +329,7 @@ if __name__ == "__main__":
     print(f"  Key image: {tx['key_image'][:20]}...")
     
     # Verify transaction
-    print("\nVerifying transaction...")
+    print("  # [SECURITY: Documentation only]\nVerifying transaction...")
     is_valid = stealth.verify_stealth_transaction(tx)
     print(f"  Valid: {is_valid}")
     
