@@ -20,7 +20,6 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
-
 class TransactionStatus(Enum):
     """MEV-protected transaction states."""
     ENCRYPTED = "encrypted"      # In mempool, encrypted
@@ -28,7 +27,6 @@ class TransactionStatus(Enum):
     REVEALED = "revealed"        # Revealed, can execute
     EXECUTED = "executed"        # Included in block
     EXPIRED = "expired"          # Reveal timeout
-
 
 @dataclass
 class EncryptedTransaction:
@@ -47,7 +45,6 @@ class EncryptedTransaction:
     
     status: TransactionStatus = TransactionStatus.ENCRYPTED
 
-
 @dataclass
 class BatchAuction:
     """Batch of transactions processed together."""
@@ -59,7 +56,6 @@ class BatchAuction:
     # Results
     clearing_price: Optional[int] = None  # Uniform price
     included_txs: List[str] = field(default_factory=list)
-
 
 class MEVProtection:
     """
@@ -304,7 +300,6 @@ class MEVProtection:
                 'user_cost_increase': '0-5%',
             },
         }
-
 
 if __name__ == "__main__":
     print("=" * 60)
