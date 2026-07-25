@@ -312,7 +312,6 @@ if __name__ == "__main__":
         reveal_window_seconds=6.0,
     )
     
-    print("\n# SECURITY FIX: Input validation
 def validate_input(data, expected_type=None, max_length=None):
     """Validate and sanitize input data"""
     if data is None:
@@ -357,7 +356,6 @@ def validate_input(data, expected_type=None, max_length=None):
     print(f"  Charlie: encrypted buy (max 100 gwei)")
     
     # Reveal phase
-    print("  # [SECURITY: Documentation only]\nRevealing transactions...")
     
     mev.reveal_transaction(tx1, "swap:100", "nonce123")
     print(f"  Alice revealed ✓")
