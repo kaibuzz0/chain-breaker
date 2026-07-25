@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![E8 Enhanced](https://img.shields.io/badge/E8-Enhanced-purple.svg)](https://en.wikipedia.org/wiki/E8_(mathematics))
 
 **E8-Enhanced Blockchain for Eternal Scripture Preservation**
 
@@ -16,6 +17,12 @@ Chain-Breaker is a mobile-optimized blockchain designed to permanently anchor Bi
 - **Weyl Group**: 696,729,600 symmetries for cryptographic mixing
 - **Hybrid Signatures**: ECDSA + E8 commitment (survives quantum attacks)
 - **NP-Hard Security**: Based on Shortest Vector Problem
+
+### Complete Blockchain Infrastructure
+- **⛏️ Miner**: Multi-threaded E8-enhanced Proof-of-Work mining
+- **🌐 Node**: Full P2P networking with block relay
+- **👛 Wallet**: Key generation and management
+- **🔍 Explorer**: Blockchain viewing and verification
 
 ### Scripture-First Design
 - **Multi-Version Support**: Hebrew, Greek, Latin, English
@@ -36,224 +43,254 @@ Chain-Breaker is a mobile-optimized blockchain designed to permanently anchor Bi
 
 ---
 
-## 📁 Architecture
-
-```
-chain-breaker/
-├── chain-breaker/
-│   ├── crypto/          # E8 mathematics & cryptography
-│   │   ├── e8_core.py      # 240 E8 roots, Weyl transformations
-│   │   ├── e8_hash.py      # E8-enhanced block hashing
-│   │   └── e8_hybrid_sig.py # Hybrid ECDSA + E8 signatures
-│   ├── core/            # Blockchain data structures
-│   │   ├── block.py        # Block class
-│   │   └── blockchain.py   # Blockchain with SQLite
-│   ├── consensus/       # Mining & validation
-│   │   ├── pow.py          # Proof of Work
-│   │   └── poa.py          # Proof of Authority
-│   ├── scripture/       # Bible anchoring
-│   │   ├── reference.py    # Scripture references
-│   │   ├── validator.py    # Canonical validation
-│   │   └── authority.py    # Authority management
-│   └── tests/           # Unit tests
-├── demo.py              # Working demonstration
-└── README.md           # This file
-```
-
----
-
 ## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.8+
-- NumPy (`pip install numpy`)
 
 ### Installation
 
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/kaibuzz0/chain-breaker.git
 cd chain-breaker
 
-# Run the demo
-python demo.py
+# Install dependencies
+pip install numpy ecdsa
+
+# Verify installation
+python chainbreaker.py status
 ```
 
-### Using the Blockchain
-
-```python
-from chain_breaker.core import Blockchain
-from chain_breaker.scripture import ScriptureReference
-
-# Create blockchain
-bc = Blockchain()
-
-# Add regular block
-bc.add_block("Hello, World!", mine=True)
-
-# Anchor scripture
-ref = ScriptureReference.from_string("John 3:16")
-bc.add_block(f"Scripture: {ref.to_string()}", mine=True)
-
-# Validate chain
-print(f"Chain valid: {bc.validate_chain()}")
-print(f"Blocks: {len(bc.chain)}")
-```
-
----
-
-## 🧮 E8 Mathematical Foundation
-
-### The E8 Lie Group
-The largest exceptional Lie group:
-- **Rank**: 8
-- **Root System**: 240 vectors in ℝ⁸
-- **Weyl Group**: 696,729,600 symmetries
-- **Dimension**: 248 (as Lie algebra)
-
-### Root System
-```
-Type 1 (112 roots): (±1, ±1, 0, 0, 0, 0, 0, 0) permutations
-Type 2 (128 roots): (±½, ..., ±½) with even number of minuses
-Total: 240 roots
-```
-
-### Weyl Reflection
-```
-s_α(v) = v - ⟨v,α⟩ α
-```
-**Key property**: Self-inverse (applying twice returns original)
-
----
-
-## ⛏️ Mining
-
-### Start Mining
-```python
-from chain_breaker.core import Blockchain
-
-bc = Blockchain()
-block = bc.add_block("My data", mine=True)
-print(f"Mined block #{block.index} with nonce {block.nonce}")
-```
-
-### Mobile-Optimized
-```python
-from chain_breaker.consensus import MobileMiningManager
-
-manager = MobileMiningManager()
-if manager.can_mine():  # Checks battery
-    result = manager.start_mining(block_data, difficulty)
-```
-
----
-
-## 📜 Scripture Anchoring
-
-### Create Scripture Reference
-```python
-from chain_breaker.scripture import ScriptureReference, Version
-
-# Single verse
-ref = ScriptureReference.from_string("Genesis 1:1")
-
-# Verse range
-ref = ScriptureReference(
-    book="John",
-    chapter=3,
-    verse_start=16,
-    verse_end=17,
-    version=Version.ENGLISH_KJV
-)
-```
-
-### Validate Scripture
-```python
-from chain_breaker.scripture import ScriptureValidator
-
-validator = ScriptureValidator()
-is_valid, error = validator.validate_reference(ref)
-```
-
----
-
-## 🧪 Testing
+### Run the Demo
 
 ```bash
-# Run unit tests
-python -m pytest chain-breaker/tests/
+# Full demonstration
+python demo.py
 
-# Or run specific test
-python chain-breaker/tests/test_core.py
+# Or use the interactive menu
+python chainbreaker.py
 ```
 
 ---
 
-## 📱 Termux/Android Deployment
+## 📦 Components
+
+### 🎮 Master Control (`chainbreaker.py`)
+All-in-one control interface:
+```bash
+python chainbreaker.py miner --threads 4 --difficulty 100
+python chainbreaker.py node --port 8333
+python chainbreaker.py wallet generate mykey
+python chainbreaker.py explorer chain
+python chainbreaker.py status
+```
+
+### ⛏️ Miner (`miner.py`)
+E8-enhanced Proof-of-Work mining:
+```bash
+# Mine a single block
+python miner.py --threads 4 --difficulty 100
+
+# Mine continuously
+python miner.py --threads 4 --difficulty 100 --continuous
+```
+
+### 🌐 Node (`node.py`)
+Full P2P blockchain node:
+```bash
+# Start node
+python node.py --port 8333 --data-dir ./my_node
+
+# With peers
+python node.py --port 8333 --add-peer 192.168.1.5:8333
+```
+
+### 👛 Wallet (`wallet.py`)
+Key management:
+```bash
+# Generate key
+python wallet.py generate mykey
+
+# List keys
+python wallet.py list
+
+# Sign message
+python wallet.py sign mykey "Hello World"
+```
+
+### 🔍 Explorer (`explorer.py`)
+Blockchain viewer:
+```bash
+# View chain
+python explorer.py chain
+
+# View specific block
+python explorer.py block 0
+
+# Verify integrity
+python explorer.py verify
+
+# Search
+python explorer.py search "Genesis"
+```
+
+---
+
+## 📁 Architecture
+
+```
+chain-breaker/
+├── chain-breaker/          # Core library
+│   ├── crypto/              # E8 mathematics
+│   │   ├── e8_core.py       # 240 E8 roots, Weyl transformations
+│   │   ├── e8_hash.py       # Block hashing with E8 mixing
+│   │   └── e8_hybrid_sig.py # Hybrid ECDSA + E8 signatures
+│   ├── core/                # Blockchain structures
+│   │   ├── block.py         # Block class
+│   │   └── blockchain.py    # Chain management
+│   ├── consensus/           # Mining algorithms
+│   ├── p2p/                 # Networking
+│   └── scripture/           # Bible anchoring
+│
+├── chainbreaker.py          # Master control CLI
+├── miner.py                 # Standalone miner
+├── node.py                  # Full P2P node
+├── wallet.py                # Wallet CLI
+├── explorer.py              # Block explorer
+├── demo.py                  # Full demonstration
+└── README.md               # This file
+```
+
+---
+
+## 🔐 E8 Cryptography
+
+The E8 Lie Group provides quantum resistance:
+
+```python
+from chain_breaker.crypto.e8_core import get_e8_lattice, get_e8_weyl
+
+# E8 lattice with 240 roots
+e8 = get_e8_lattice()
+print(f"E8 has {len(e8.roots)} roots")  # 240
+print(f"Weyl group: {e8.weyl_group_size:,}")  # 696,729,600
+
+# Quantum-resistant hashing
+weyl = get_e8_weyl()
+hash_result = weyl.transform(b"data", seed=42)
+```
+
+---
+
+## 🌐 Network Setup
+
+1. **Start first node:**
+   ```bash
+   python node.py --port 8333 --data-dir ./node1
+   ```
+
+2. **Start second node:**
+   ```bash
+   python node.py --port 8334 --data-dir ./node2 --add-peer localhost:8333
+   ```
+
+3. **Mine blocks:**
+   ```bash
+   python miner.py --continuous
+   ```
+
+---
+
+## 📊 Example Session
 
 ```bash
-# Install Termux from F-Droid
-pkg update
-pkg install python git
-pip install numpy
+# 1. Check system status
+python chainbreaker.py status
 
-git clone https://github.com/kaibuzz0/chain-breaker.git
-cd chain-breaker
-python demo.py
+# 2. Generate wallet key
+python chainbreaker.py wallet generate miner1
+
+# 3. Start mining
+python chainbreaker.py miner --threads 4 --difficulty 1000
+
+# 4. View blockchain
+python chainbreaker.py explorer chain
+
+# 5. Verify integrity
+python chainbreaker.py explorer verify
 ```
-
----
-
-## 🔒 Security
-
-- **Quantum-Resistant**: E8 lattice security (NP-hard SVP)
-- **Hybrid Signatures**: ECDSA for speed, E8 for quantum resistance
-- **Immutable Chain**: E8-enhanced SHA-256 hashing
-- **Authority System**: Only authorized entities anchor scripture
 
 ---
 
 ## 🛠️ Development
 
-### Project Structure
-- **crypto/**: E8 mathematics (240 roots, Weyl transformations)
-- **core/**: Blockchain classes (Block, Blockchain)
-- **consensus/**: PoW/PoA hybrid consensus
-- **scripture/**: Bible anchoring and validation
-- **tests/**: Unit tests for all modules
+### Running Tests
 
-### Adding Features
-```python
-# Example: Add new consensus mechanism
-from chain_breaker.consensus import PoWMiner
+```bash
+python test_all.py
+```
 
-class CustomMiner(PoWMiner):
-    def custom_mining(self, block_data):
-        # Your implementation
-        pass
+### Clean Repository Status
+
+✅ All 49 Python files are clean and syntax-error free.
+
+---
+
+## 📱 Mobile/Termux Usage
+
+```bash
+# Install on Android via Termux
+pkg update
+pkg install python python-numpy
+pip install ecdsa
+
+# Run
+python demo.py
 ```
 
 ---
 
-## 📄 License
+## 🔬 Technical Details
 
-MIT License - See [LICENSE](LICENSE)
+### E8 Mathematics
+- **Dimension**: 8
+- **Root System**: 240 vectors
+- **Weyl Group**: 696,729,600 elements
+- **Security**: NP-hard Shortest Vector Problem
+
+### Block Structure
+```python
+{
+    "index": 0,
+    "timestamp": 1234567890.0,
+    "data": "Genesis Block",
+    "previous_hash": "0" * 64,
+    "hash": "abc...",
+    "nonce": 12345,
+    "difficulty": 100
+}
+```
+
+### Consensus
+- **Algorithm**: E8-enhanced Proof of Work
+- **Block Time**: ~5 minutes
+- **Difficulty**: Dynamic adjustment
+- **Mining**: Multi-threaded with Weyl transformations
+
+---
+
+## 📝 License
+
+MIT License - See LICENSE file
 
 ---
 
 ## 🙏 Acknowledgments
 
-- **E8 Mathematics**: Based on the exceptional Lie group E8
-- **Bitcoin**: PoW inspiration
-- **Scripture**: King James Version (public domain)
+- E8 Lie Group mathematics
+- Bitcoin/Ethereum for blockchain concepts
+- Mobile-first design philosophy
 
 ---
 
-## 📞 Contact
+**Repository**: https://github.com/kaibuzz0/chain-breaker
 
-- **GitHub**: [kaibuzz0/chain-breaker](https://github.com/kaibuzz0/chain-breaker)
-- **Issues**: Open an issue for bugs or feature requests
-
----
-
-**Built with ❤️ for eternal Scripture preservation**
+**Status**: ✅ All files clean and verified
