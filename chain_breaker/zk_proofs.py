@@ -20,7 +20,6 @@ import time
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 
-
 @dataclass
 class ZKProof:
     """Zero-knowledge proof structure."""
@@ -33,7 +32,6 @@ class ZKProof:
     verified: bool = False
     verified_at: Optional[float] = None
 
-
 @dataclass
 class ZKTransaction:
     """ZK-encrypted private transaction."""
@@ -43,7 +41,6 @@ class ZKTransaction:
     encrypted_receiver: str      # Receiver hidden
     proof: Optional[ZKProof] = None
     valid: bool = False
-
 
 class ZKProofSystem:
     """
@@ -363,7 +360,6 @@ class ZKProofSystem:
                 'verification_size': 'O(log n)',
             },
         }
-
 
 if __name__ == "__main__":
     print("=" * 60)
