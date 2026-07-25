@@ -1,4 +1,4 @@
-# SECURITY FIX: Access control and reentrancy protection
+
 import functools
 
 ADMIN_ADDRESS = "0xadmin"  # Set your admin address
@@ -46,7 +46,6 @@ import time
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
-
 @dataclass
 class TokenomicsConfig:
     """Configuration for deflationary tokenomics."""
@@ -66,7 +65,6 @@ class TokenomicsConfig:
     
     # Total supply cap (optional)
     max_supply: Optional[int] = 21000000  # Like Bitcoin, but deflationary path
-
 
 class DeflationaryMint:
     """
@@ -241,7 +239,6 @@ def burn(self, amount: int, address: str):
                 if self.config.max_supply else None
             ),
         }
-
 
 if __name__ == "__main__":
     print("=" * 60)
