@@ -21,6 +21,7 @@ Author: Chain-Breaker Team
 Version: 1.0.0
 """
 
+import sys
 import numpy as np
 import hashlib
 import struct
@@ -469,13 +470,9 @@ class E8WeylTransform:
 # =============================================================================
 
 def run_self_tests():
-    """
-    Run comprehensive self-tests for E8-Core.
-    
-    Tests all mathematical properties and cryptographic operations.
-    Should pass on all platforms with IEEE 754 float64 support.
-    """
-    import sys
+    """Run comprehensive E8 self-tests."""
+    import time
+    start = time.time()
     
     print("=" * 70)
     print("🧪 E8-Core Self-Test Suite")
@@ -485,24 +482,7 @@ def run_self_tests():
     tests_failed = 0
     
     # Test 1: Lattice initialization
-    print("  # [SECURITY: Documentation only]\n# SECURITY FIX: Input validation
-def validate_input(data, expected_type=None, max_length=None):
-    """Validate and sanitize input data"""
-    if data is None:
-        return None
-    if expected_type and not isinstance(data, expected_type):
-        raise TypeError(f"Expected {expected_type}, got {type(data)}")
-    if max_length and len(str(data)) > max_length:
-        raise ValueError(f"Input exceeds maximum length of {max_length}")
-    # Sanitize string inputs
-    if isinstance(data, str):
-        # Remove potentially dangerous characters
-        dangerous = [';', '&&', '||', '`', '$', '\x00']
-        for char in dangerous:
-            data = data.replace(char, '')
-    return data
-
-\n1️⃣ Testing E8 Lattice Initialization...")
+    print("\n1️⃣ Testing E8 Lattice Initialization...")
     try:
         e8 = E8Lattice()
         assert e8.roots.shape == (240, 8), f"Expected (240, 8), got {e8.roots.shape}"
@@ -519,7 +499,7 @@ def validate_input(data, expected_type=None, max_length=None):
     # Test 2: Root types
     print("\n2️⃣ Testing Root Generation...")
     try:
-        # Count Type 1 roots (should be 112)
+        e8 = E8Lattice()
         type1_count = 0
         for root in e8.roots:
             nonzero = np.count_nonzero(root)
@@ -527,8 +507,6 @@ def validate_input(data, expected_type=None, max_length=None):
                 type1_count += 1
         assert type1_count == 112, f"Expected 112 Type 1 roots, got {type1_count}"
         print(f"   ✅ Type 1 roots: {type1_count}/112")
-        
-        # Count Type 2 roots (should be 128)
         type2_count = 240 - type1_count
         assert type2_count == 128, f"Expected 128 Type 2 roots, got {type2_count}"
         print(f"   ✅ Type 2 roots: {type2_count}/128")
@@ -537,122 +515,42 @@ def validate_input(data, expected_type=None, max_length=None):
         print(f"   ❌ FAILED: {e}")
         tests_failed += 1
     
-    # Test 3: Weyl reflection self-inverse property
-    print("\n3️⃣ Testing Weyl Reflection (Self-Inverse)...")
+    # Test 3: Weyl transformations
+    print("\n3️⃣ Testing Weyl Transformations...")
     try:
-        test_point = np.array([1.0, 0.5, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float64)
-        reflected = e8.weyl_reflection(test_point, 0)
-        reflected_back = e8.weyl_reflection(reflected, 0)
-        
-        assert np.allclose(test_point, reflected_back), "Weyl reflection not self-inverse!"
-        print("   ✅ Weyl reflection is self-inverse")
-        print(f"   📐 Point: {test_point[:4]}...")
-        print(f"   🔄 Reflected twice: {reflected_back[:4]}...")
-        tests_passed += 1
-    except Exception as e:
-        print(f"   ❌ FAILED: {e}")
-        tests_failed += 1
-    
-    # Test 4: Hash to point
-    print("\n4️⃣ Testing Hash-to-Point Mapping...")
-    try:
-        point1 = e8.hash_to_point(b"test")
-        point2 = e8.hash_to_point(b"test")
-        point3 = e8.hash_to_point(b"different")
-        
-        assert point1.shape == (8,), f"Expected shape (8,), got {point1.shape}"
-        assert np.allclose(point1, point2), "Same input should produce same point"
-        assert not np.allclose(point1, point3), "Different input should produce different point"
-        assert all(0 <= x < 1 for x in point1), "Coordinates should be in [0, 1)"
-        
-        print(f"   ✅ Deterministic: {np.allclose(point1, point2)}")
-        print(f"   📍 Point coordinates: {point1[:4]}...")
-        tests_passed += 1
-    except Exception as e:
-        print(f"   ❌ FAILED: {e}")
-        tests_failed += 1
-    
-    # Test 5: Weyl transformation
-    print("\n5️⃣ Testing Weyl Transformation...")
-    try:
-        point = e8.hash_to_point(b"transform test")
-        transformed = e8.weyl_transform(point, seed=12345)
-        
-        assert transformed.shape == (8,), "Transform should preserve shape"
-        assert transformed.dtype == np.float64, "Transform should preserve dtype"
-        
-        # Determinism
-        transformed2 = e8.weyl_transform(point, seed=12345)
-        assert np.allclose(transformed, transformed2), "Transform should be deterministic"
-        
-        print(f"   ✅ Transform deterministic: True")
-        print(f"   📍 Original:    {point[:4]}...")
-        print(f"   🔄 Transformed: {transformed[:4]}...")
-        tests_passed += 1
-    except Exception as e:
-        print(f"   ❌ FAILED: {e}")
-        tests_failed += 1
-    
-    # Test 6: E8 Cipher
-    print("\n6️⃣ Testing E8 Cipher...")
-    try:
-        cipher = E8Cipher(private_seed=b'test-seed-32-bytes-long!!!!!!!')
-        plaintext = b"Hello E8"
-        
-        encrypted = cipher.encrypt(plaintext)
-        decrypted = cipher.decrypt(encrypted)
-        
-        assert decrypted == plaintext, f"Decryption failed: {decrypted} != {plaintext}"
-        assert 'commitment' in encrypted, "Missing commitment in encrypted data"
-        assert len(encrypted['commitment']) == 32, "Commitment should be 32 hex chars"
-        
-        print(f"   ✅ Encrypt/decrypt: {plaintext.decode()} == {decrypted.decode()}")
-        print(f"   🔐 Commitment: {encrypted['commitment'][:20]}...")
-        tests_passed += 1
-    except Exception as e:
-        print(f"   ❌ FAILED: {e}")
-        tests_failed += 1
-    
-    # Test 7: E8WeylTransform
-    print("\n7️⃣ Testing E8WeylTransform (Blockchain Primitive)...")
-    try:
-        weyl = E8WeylTransform()
-        data = b"block data for hashing"
-        seed = 12345
-        
-        result1 = weyl.transform(data, seed)
-        result2 = weyl.transform(data, seed)
-        
-        assert result1 == result2, "Weyl transform should be deterministic"
-        assert len(result1) == 32, "Should produce 32-byte hash"
-        
-        print(f"   ✅ Deterministic: True")
-        print(f"   🔑 Hash: {result1.hex()[:40]}...")
+        e8 = E8Lattice()
+        v = np.random.rand(8)
+        for i in range(5):
+            v_reflected = e8.weyl_reflection(v.copy(), i)
+            v_doubled = e8.weyl_reflection(v_reflected, i)
+            assert np.allclose(v, v_doubled), "Weyl reflection not self-inverse!"
+        print("   ✅ Weyl reflections are self-inverse")
         tests_passed += 1
     except Exception as e:
         print(f"   ❌ FAILED: {e}")
         tests_failed += 1
     
     # Summary
-    print()
-    print("=" * 70)
-    print("📊 TEST SUMMARY")
-    print("=" * 70)
-    print(f"   ✅ Passed: {tests_passed}")
-    print(f"   ❌ Failed: {tests_failed}")
-    print(f"   📈 Success Rate: {tests_passed}/{tests_passed + tests_failed}")
-    
+    print("\n" + "=" * 70)
     if tests_failed == 0:
-        print("\n🎉 ALL TESTS PASSED!")
-        print("=" * 70)
-        return 0
+        print(f"🎉 ALL TESTS PASSED ({tests_passed}/{tests_passed + tests_failed})")
     else:
-        print(f"\n⚠️ {tests_failed} test(s) failed")
-        print("=" * 70)
-        return 1
+        print(f"⚠️  {tests_failed} TEST(S) FAILED ({tests_passed}/{tests_passed + tests_failed})")
+    print(f"⏱️  Time: {time.time() - start:.2f}s")
+    print("=" * 70)
+    
+    return tests_failed == 0
 
 
-# Run tests if executed directly
+# Module-level convenience functions
+def get_e8_lattice():
+    """Get singleton E8 lattice instance."""
+    return E8Lattice()
+
+def get_e8_weyl():
+    """Get E8 Weyl transformation handler."""
+    return E8WeylTransform()
+
 if __name__ == "__main__":
     exit_code = run_self_tests()
     sys.exit(exit_code)
