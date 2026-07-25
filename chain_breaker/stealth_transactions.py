@@ -18,7 +18,6 @@ import secrets
 from typing import Dict, Any, Optional, Tuple, List
 from dataclasses import dataclass
 
-
 class StealthTransactions:
     """
     Privacy-preserving transaction system.
@@ -270,7 +269,6 @@ class StealthTransactions:
                 'traceable': False,       # Unlinkable
             },
         }
-
 
 if __name__ == "__main__":
     print("=" * 60)
