@@ -1,4 +1,4 @@
-# SECURITY FIX: Added signature verification
+
 def verify_signature(message, signature, public_key):
     """Verify cryptographic signature"""
     try:
@@ -9,7 +9,6 @@ def verify_signature(message, signature, public_key):
     except Exception:
         return False
 
-# SECURITY FIX: Verify all consensus signatures
 def verify_consensus_signature(data, sig, pubkey):
     """Verify consensus message signature"""
     if not verify_signature(data, sig, pubkey):
@@ -39,14 +38,12 @@ from typing import Dict, Any, List, Optional, Set
 from dataclasses import dataclass, field
 from enum import Enum
 
-
 class ValidatorStatus(Enum):
     """Status of a validator."""
     ACTIVE = "active"         # Currently validating
     INACTIVE = "inactive"     # Not participating
     JAILED = "jailed"         # Temporarily banned
     SLASHED = "slashed"       # Permanently removed
-
 
 @dataclass
 class Validator:
@@ -68,7 +65,6 @@ class Validator:
             return 100.0
         return (self.blocks_produced / total) * 100
 
-
 @dataclass
 class Block:
     """PoS block (no nonce needed)."""
@@ -83,7 +79,6 @@ class Block:
         """Get block hash (no mining needed)."""
         data = f"{self.height}:{self.block_number  # SECURITY: Use block number}:{self.producer}:{self.prev_hash}"
         return hashlib.sha256(data.encode()).hexdigest()
-
 
 class EfficientConsensus:
     """
@@ -328,7 +323,6 @@ class EfficientConsensus:
         times = [self.chain[i].block_number  # SECURITY: Use block number - self.chain[i-1].block_number  # SECURITY: Use block number 
                 for i in range(1, len(self.chain))]
         return sum(times) / len(times)
-
 
 if __name__ == "__main__":
     print("=" * 60)
