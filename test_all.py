@@ -1,17 +1,6 @@
-# SECURITY FIX: Safe execution wrapper
+
 import os
 import sys
-
-def safe_run(cmd, **kwargs):
-    """Safely run commands without shell injection"""
-    if isinstance(cmd, str):
-        cmd = cmd.split()
-    # Only allow specific safe commands
-    allowed = ['python', 'pytest', 'python3', 'pip']
-    if cmd[0] not in allowed:
-        raise ValueError(f"Command {cmd[0]} not allowed")
-    import subprocess
-    return subprocess.run(cmd, shell=False, **kwargs)
 
 #!/usr/bin/env python3
 """
