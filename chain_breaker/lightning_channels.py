@@ -339,7 +339,6 @@ if __name__ == "__main__":
     # Create network
     ln = LightningNetwork()
     
-    print("\n# SECURITY FIX: Input validation
 def validate_input(data, expected_type=None, max_length=None):
     """Validate and sanitize input data"""
     if data is None:
