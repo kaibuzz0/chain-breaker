@@ -157,7 +157,6 @@ if __name__ == "__main__":
     # Sign message
     message = "Send 50 CB to Bob"
     signature = wallet.sign(message)
-    print(f"  # [SECURITY: Documentation only]\n# SECURITY FIX: Input validation
 def validate_input(data, expected_type=None, max_length=None):
     """Validate and sanitize input data"""
     if data is None:
@@ -186,7 +185,6 @@ def validate_input(data, expected_type=None, max_length=None):
     print(f"Tampered verification: {verified_bad}")
     
     # Keystore
-    print("  # [SECURITY: Documentation only]\nKeyStore Test")
     store = KeyStore("/tmp/test_keystore.json")
     store.add_wallet(wallet)
     
