@@ -1,4 +1,4 @@
-# SECURITY FIX: Safe arithmetic operations
+
 MAX_INT = 2**63 - 1
 
 def safe_add(a, b):
@@ -40,14 +40,12 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-
 class CoinState(Enum):
     """States a coin can be in."""
     ACTIVE = "active"
     DORMANT = "dormant"      # Warning period
     RECLAIMABLE = "reclaimable"  # Can recover with penalty
     RECYCLED = "recycled"    # Returned to network
-
 
 @dataclass
 class AddressStatus:
@@ -89,7 +87,6 @@ class AddressStatus:
         elapsed = now - self.last_activity
         remaining = self.RECYCLE_THRESHOLD - elapsed
         return max(0, remaining)
-
 
 class CoinReclamation:
     """
@@ -321,7 +318,6 @@ class CoinReclamation:
             pass
         
         return future_time
-
 
 if __name__ == "__main__":
     print("=" * 60)
