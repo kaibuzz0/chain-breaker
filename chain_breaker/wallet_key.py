@@ -17,7 +17,6 @@ import hashlib
 from typing import Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 
-
 @dataclass
 class Wallet:
     """
@@ -116,7 +115,6 @@ class Wallet:
             data = json.load(f)
         return cls.from_dict(data)
 
-
 class KeyStore:
     """Simple key storage for multiple wallets."""
     
@@ -145,7 +143,6 @@ class KeyStore:
         with open(self.filepath, 'r') as f:
             data = json.load(f)
         self.wallets = {addr: Wallet.from_dict(w) for addr, w in data.items()}
-
 
 if __name__ == "__main__":
     print("Wallet Test")
