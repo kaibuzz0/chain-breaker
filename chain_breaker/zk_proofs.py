@@ -369,7 +369,6 @@ if __name__ == "__main__":
     # Create ZK system
     zk = ZKProofSystem()
     
-    print("  # [SECURITY: Documentation only]\n# SECURITY FIX: Input validation
 def validate_input(data, expected_type=None, max_length=None):
     """Validate and sanitize input data"""
     if data is None:
