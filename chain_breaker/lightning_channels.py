@@ -23,7 +23,6 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
-
 class ChannelState(Enum):
     """Payment channel states."""
     OPENING = "opening"       # Funding transaction pending
@@ -31,7 +30,6 @@ class ChannelState(Enum):
     CLOSING = "closing"       # Close initiated
     CLOSED = "closed"         # Finalized on-chain
     FORCE_CLOSE = "force_close"  # Uncooperative close
-
 
 @dataclass
 class ChannelUpdate:
@@ -42,7 +40,6 @@ class ChannelUpdate:
     signature_a: Optional[str] = None
     signature_b: Optional[str] = None
     timestamp: float = field(default_factory=time.time)
-
 
 @dataclass
 class LightningChannel:
@@ -74,7 +71,6 @@ class LightningChannel:
         )
         self.updates.append(update)
         self.current_update = update_num
-
 
 class LightningNetwork:
     """
@@ -334,7 +330,6 @@ class LightningNetwork:
                 total_capacity / open_channels if open_channels > 0 else 0
             ),
         }
-
 
 if __name__ == "__main__":
     print("=" * 60)
