@@ -278,7 +278,6 @@ if __name__ == "__main__":
     # Create privacy system
     stealth = StealthTransactions()
     
-    print("  # [SECURITY: Documentation only]\n# SECURITY FIX: Input validation
 def validate_input(data, expected_type=None, max_length=None):
     """Validate and sanitize input data"""
     if data is None:
@@ -309,7 +308,6 @@ def validate_input(data, expected_type=None, max_length=None):
     print(f"  Bob (receiver): {bob_pubkey[:20]}...")
     
     # Create stealth transaction
-    print("  # [SECURITY: Documentation only]\nCreating stealth transaction...")
     print("  - Amount: 1000")
     print("  - Ring size: 11 (1 real + 10 decoys)")
     
@@ -327,7 +325,6 @@ def validate_input(data, expected_type=None, max_length=None):
     print(f"  Key image: {tx['key_image'][:20]}...")
     
     # Verify transaction
-    print("  # [SECURITY: Documentation only]\nVerifying transaction...")
     is_valid = stealth.verify_stealth_transaction(tx)
     print(f"  Valid: {is_valid}")
     
