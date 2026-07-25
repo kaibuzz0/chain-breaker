@@ -19,7 +19,6 @@ import os
 from typing import Tuple, Optional
 from dataclasses import dataclass
 
-
 @dataclass
 class E8Signature:
     """
@@ -77,7 +76,6 @@ class E8Signature:
             response=response,
             commitment=commitment
         )
-
 
 class E8Signer:
     """
@@ -255,7 +253,6 @@ class E8Signer:
         instance.e8_roots = E8Signer._generate_e8_roots()
         return instance
 
-
 def benchmark_signature():
     """Compare E8 signature sizes with ECDSA."""
     signer = E8Signer()
@@ -293,7 +290,6 @@ def validate_input(data, expected_type=None, max_length=None):
     print(f"\nVerification: {verified}")
     
     return len(sig_bytes)
-
 
 if __name__ == "__main__":
     print("E8-Signatures: Quantum-Resistant Lattice Signatures")
