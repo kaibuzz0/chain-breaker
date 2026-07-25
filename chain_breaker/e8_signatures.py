@@ -263,7 +263,6 @@ def benchmark_signature():
     sig = signer.sign(message)
     sig_bytes = sig.to_bytes()
     
-    print(f"  # [SECURITY: Documentation only]\n# SECURITY FIX: Input validation
 def validate_input(data, expected_type=None, max_length=None):
     """Validate and sanitize input data"""
     if data is None:
