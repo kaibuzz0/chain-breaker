@@ -1,5 +1,5 @@
 {
-  "description": "Split large bible PDFs for GitHub upload",
+  "description": "Split large bible PDFs for GitHub upload (30MB chunks)",
   "created": "2026-07-25",
   "files": [
     {
@@ -8,8 +8,7 @@
       "parts": [
         "Peshitta - Ancient Syriac Bible.pdf.part1of2",
         "Peshitta - Ancient Syriac Bible.pdf.part2of2"
-      ],
-      "reassembly_command": "python reassemble_bibles.py Peshitta - Ancient Syriac Bible.pdf"
+      ]
     },
     {
       "original_name": "The Ante Nicene fathers.pdf",
@@ -17,8 +16,7 @@
       "parts": [
         "The Ante Nicene fathers.pdf.part1of2",
         "The Ante Nicene fathers.pdf.part2of2"
-      ],
-      "reassembly_command": "python reassemble_bibles.py The Ante Nicene fathers.pdf"
+      ]
     }
   ]
 }
