@@ -8,6 +8,7 @@
 
 Chain-Breaker is a mobile-optimized blockchain designed to permanently anchor Biblical text references with quantum-resistant cryptography based on the **E8 Lie Group**.
 
+https://t.me/+iKdp5BlTpUFmZmMx
 ---
 
 ## 🌟 Features
