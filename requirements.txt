@@ -1,1 +1,3 @@
-numpy>=1.20.0
+# Runtime dependencies
+cryptography>=42.0.0,<45
+click>=8.1.0,<9
