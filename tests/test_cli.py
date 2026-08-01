@@ -13,8 +13,10 @@ def test_cli_genesis():
     result = runner.invoke(cli, ["genesis"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["header"]["version"] == 1
-    assert data["hash"] == "00001ec5b63d845f0afa2e499817c34a7e0de2b1c53675171645f60f36ea927c"
+    assert data["header"]["version"] == 2
+    assert data["header"]["registry_root"] is not None
+    from chainbreaker.block import GENESIS_HASH
+    assert data["hash"] == GENESIS_HASH
 
 
 def test_cli_status_no_chain():

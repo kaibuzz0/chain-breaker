@@ -1,8 +1,11 @@
 
 from chainbreaker.block import (
+    GENESIS_HASH,
+    GENESIS_NONCE,
     MAX_TARGET,
     Block,
     BlockHeader,
+    BlockV2,
     create_genesis_block,
     header_hash,
     satisfies_pow,
@@ -13,13 +16,13 @@ from chainbreaker.codec import BinaryCodec
 def test_genesis_hardcoded():
     g = create_genesis_block()
     assert g.verify(allow_genesis=True)
-    assert g.hash == "00001ec5b63d845f0afa2e499817c34a7e0de2b1c53675171645f60f36ea927c"
-    assert g.header.nonce == 116224
+    assert g.hash == GENESIS_HASH
+    assert g.header.nonce == GENESIS_NONCE
 
 
 def test_genesis_to_dict_roundtrip():
     g = create_genesis_block()
-    g2 = Block.from_dict(g.to_dict())
+    g2 = BlockV2.from_dict(g.to_dict())
     assert g2.hash == g.hash
 
 

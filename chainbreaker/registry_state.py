@@ -78,6 +78,8 @@ class RegistryState:
     records: tuple[CuratorRecord, ...]
     governance_version: int = GOVERNANCE_SCHEMA_VERSION
     network_id: str = NETWORK_ID
+    governance_keys: tuple[str, ...] = ()
+    threshold: int = 0
 
     def __hash__(self) -> int:
         # tuples are hashable; records are frozen dataclasses
@@ -141,6 +143,37 @@ class RegistryState:
             )
         return cls(records=tuple(records))
 
+    @classmethod
+    def genesis(
+        cls,
+        governance_keys: list[str],
+        threshold: int,
+    ) -> RegistryState:
+        """Create the genesis registry state.
+
+        The genesis state contains the bootstrap governance key set and
+        threshold, with no curators.  Governance keys are sorted
+        lexicographically to ensure canonical serialization across independent
+        implementations.
+        """
+        if not isinstance(governance_keys, list) or not governance_keys:
+            raise RegistryError("genesis requires at least one governance key")
+        if not (1 <= threshold <= len(governance_keys)):
+            raise RegistryError(
+                f"genesis threshold must satisfy 1 <= threshold <= {len(governance_keys)}"
+            )
+        for key in governance_keys:
+            if len(bytes.fromhex(key)) != 32:
+                raise RegistryError(f"governance key must be 32 bytes: {key}")
+        sorted_keys = sorted(governance_keys)
+        return cls(
+            records=(),
+            governance_version=GOVERNANCE_SCHEMA_VERSION,
+            network_id=NETWORK_ID,
+            governance_keys=tuple(sorted_keys),
+            threshold=threshold,
+        )
+
 
 # Serialization helpers (used only inside this module)
 
@@ -177,6 +210,12 @@ def serialize_registry_state(state: RegistryState) -> bytes:
     # state header
     parts.append(state.governance_version.to_bytes(4, "little"))
     parts.append(_encode_str(state.network_id))
+    # governance keys
+    parts.append(_encode_varint(len(state.governance_keys)))
+    for key_hex in state.governance_keys:
+        parts.append(bytes.fromhex(key_hex))
+    parts.append(state.threshold.to_bytes(1, "little"))
+    # curator records
     parts.append(_encode_varint(len(sorted_records)))
     for record in sorted_records:
         parts.append(_serialize_record(record))

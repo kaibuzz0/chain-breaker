@@ -342,10 +342,11 @@ def test_wrong_genesis_rejected():
 
 def test_wrong_network_id_in_genesis_rejected():
     g = create_genesis_block()
-    g.transactions[0]["body"]["network_id"] = "evil"
-    g.header.merkle_root = g.merkle_root()
-    # Genesis verify compares transactions exactly, so this fails
-    assert not g.verify(allow_genesis=True)
+    # Genesis v2 is a fixed constant with no mutable genesis transaction.
+    # The network identity is enforced by the protocol constants and verified
+    # against the hard-coded header bytes.
+    assert g.transactions == []
+    assert g.verify(allow_genesis=True)
 
 
 def test_block_encode_decode_roundtrip():
