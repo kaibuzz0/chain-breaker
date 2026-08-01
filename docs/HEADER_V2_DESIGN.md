@@ -163,17 +163,36 @@ GENESIS_TARGET = MAX_TARGET
 GENESIS_NONCE = computed by brute force to satisfy target
 GENESIS_HASH = computed from header bytes
 GENESIS_MERKLE_ROOT = "0" * 64  # genesis has no transactions
-GENESIS_REGISTRY_ROOT = registry_root(RegistryState.empty())
+GENESIS_REGISTRY_ROOT = registry_root(
+    RegistryState.genesis(
+        governance_keys=GENESIS_GOVERNANCE_KEYS,
+        threshold=GENESIS_THRESHOLD,
+    )
+)
 ```
 
-The genesis governance key set is not stored in the genesis block.  It is an
-implicit network constant documented in the protocol specification and
-genesis configuration.
+The genesis registry state includes the bootstrap governance key set and
+threshold.  Governance keys are not a separate constant; they are the initial
+registry state.
 
-Rationale: a governance-registration transaction needs to be signed by existing
-governance keys.  Before any curator is registered, the only available keys
-are the genesis governance keys.  They are therefore a bootstrap constant, not a
-on-chain state entry.
+```text
+GENESIS_GOVERNANCE_KEYS = [
+    "hex_public_key_1",
+    "hex_public_key_2",
+    ...
+]
+GENESIS_THRESHOLD = N
+```
+
+The keys must be sorted lexicographically in the genesis specification so that
+every node derives the same canonical state.  The threshold must satisfy
+`1 <= N <= len(GENESIS_GOVERNANCE_KEYS)`.
+
+Rationale: a governance-registration transaction needs to be signed by the
+governance keys already in state.  Before any curator is registered, the only
+available keys are the genesis keys.  Placing them in the initial registry
+state keeps all authority inside the same state machine and avoids special-case
+bootstrap logic after block 0.
 
 ---
 

@@ -149,18 +149,34 @@ depend on the order in which a node learned about the branches.
 
 ## 8. Genesis governance commitment
 
-The genesis block of a v2 network commits to an initial governance key set and
-signature threshold.
+The genesis block of a v2 network commits to an initial registry state that
+includes the genesis governance key set and threshold.
 
 ```text
-genesis.registry_root == registry_root(RegistryState.empty())
+genesis.registry_root == registry_root(RegistryState.genesis(governance_keys, threshold))
 ```
 
-The empty-state root is `SHA-256(canonical_serialization(empty_state))` and is
-a fixed network constant.
+The genesis registry state contains:
 
-The first registration of governance-signable curators must appear in blocks
-after genesis, signed by the genesis governance key set.
+```text
+- governance_version: 1
+- network_id: chainbreaker-scripture-v2
+- governance_keys: list of bootstrap Ed25519 public keys, sorted lexicographically
+- threshold: N where 1 <= N <= len(governance_keys)
+- curators: empty
+```
+
+Governance keys are part of registry state from genesis.  They are not a
+separate bootstrap constant.  This keeps all authority inside the same
+state machine and avoids special-case logic after block 0.
+
+The genesis block itself cannot contain a governance transaction that registers
+these keys, because such a transaction would require signatures from keys that
+are not yet committed.  Therefore the genesis specification defines the keys
+as the initial state.
+
+The genesis governance key list is immutable for the life of the network.
+Changing it requires a new network genesis.
 
 ---
 
