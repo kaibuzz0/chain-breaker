@@ -23,6 +23,10 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 
 Hash = str  # 64-char lowercase hex SHA-256 digest
 
+# Protocol v2 target bounds (256-bit unsigned integers).
+MAX_TARGET = 0x0000FFFF00000000000000000000000000000000000000000000000000000000
+MIN_TARGET = 1
+
 
 class HashEngine:
     """Deterministic SHA-256 helpers."""
@@ -144,6 +148,27 @@ def work_for_target(target: int) -> float:
     if target <= 0:
         raise ValueError("target must be positive")
     return (2**256 - target) / (target + 1)
+
+
+def work_for_target_v2(target: int) -> int:
+    """Exact integer work represented by a target for Protocol v2.
+
+    Defined as floor(MAX_TARGET / target).  Returns a positive integer for any
+    valid target in (0, MAX_TARGET].
+    """
+    if target <= 0:
+        raise ValueError("target must be positive")
+    return MAX_TARGET // target
+
+
+def check_pow_v2(header_bytes: bytes, target: int) -> bool:
+    """Verify v2 PoW against canonical 149-byte header bytes."""
+    if len(header_bytes) != 149:
+        return False
+    if target <= 0:
+        return False
+    digest = HashEngine.hash_double(header_bytes)
+    return int.from_bytes(digest, "big") <= target
 
 
 def target_to_difficulty(target: int) -> float:
