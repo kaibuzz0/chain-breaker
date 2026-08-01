@@ -7,17 +7,33 @@ import time
 from typing import Any, Callable
 
 from .block import (
+    GENESIS_GOVERNANCE_KEYS,
     GENESIS_TARGET,
+    GENESIS_THRESHOLD,
     MAX_TARGET,
     MIN_TARGET,
     NETWORK_ID,
     Block,
     BlockHeader,
+    BlockHeaderV2,
     BlockV2,
     create_genesis_block,
 )
 from .codec import BinaryCodec, validate_transaction
-from .crypto import HashEngine, MerkleTree, work_for_target
+from .crypto import HashEngine, MerkleTree, work_for_target, work_for_target_v2
+from .governance import (
+    CuratorRegisterTx,
+    CuratorRevokeTx,
+    CuratorRotateTx,
+    GovernanceContext,
+    GovernanceError,
+)
+from .registry_state import (
+    RegistryError,
+    RegistryState,
+    apply_registry_transaction,
+    registry_root,
+)
 
 TARGET_BLOCK_TIME = 600
 DIFFICULTY_RETARGET_INTERVAL = 10
@@ -35,7 +51,9 @@ class Ledger:
                  transaction_validator: Callable[[dict[str, Any]], bool] | None = None,
                  max_block_size: int = 1_000_000,
                  max_transactions: int = 10_000,
-                 network_id: str | None = None):
+                 network_id: str | None = None,
+                 governance_keys: list[str] | None = None,
+                 governance_threshold: int | None = None):
         if chain is None:
             chain = [create_genesis_block(network_id=network_id)]
         self.chain = list(chain)
@@ -43,6 +61,55 @@ class Ledger:
         self.transaction_validator = transaction_validator
         self.max_block_size = max_block_size
         self.max_transactions = max_transactions
+        self.governance_keys = list(governance_keys or GENESIS_GOVERNANCE_KEYS)
+        self.governance_threshold = governance_threshold if governance_threshold is not None else GENESIS_THRESHOLD
+        self._governance_context = GovernanceContext(self.governance_keys, self.governance_threshold)
+        self.registry_states: dict[int, RegistryState] = {}
+        self._replay_registry_states()
+
+    def _replay_registry_states(self) -> None:
+        """Recompute registry_states from genesis using only the chain.
+
+        This is the deterministic replay path.  It is called on __init__ and
+        may be called after a reorg in a future milestone.
+        """
+        self.registry_states = {0: RegistryState.genesis(self.governance_keys, self.governance_threshold)}
+        for height in range(1, len(self.chain)):
+            self.registry_states[height] = self._apply_transactions(
+                self.registry_states[height - 1],
+                self.chain[height].transactions,
+                height,
+            )
+
+    def _apply_transactions(self, state: RegistryState, transactions: list[dict[str, Any]], height: int) -> RegistryState:
+        """Fold governance transactions into a scratch state copy."""
+        new_state = state
+        for tx in transactions:
+            parsed = self._parse_governance_transaction(tx)
+            if parsed is not None:
+                txid = HashEngine.hash_object_hex(parsed.to_dict())
+                new_state = apply_registry_transaction(new_state, parsed, height, txid, self._governance_context)
+        return new_state
+
+    def _parse_governance_transaction(self, tx: dict[str, Any]) -> CuratorRegisterTx | CuratorRotateTx | CuratorRevokeTx | None:
+        """Return a governance transaction object if tx is a registry mutation."""
+        if not isinstance(tx, dict) or tx.get("type") != "governance":
+            return None
+        body = tx.get("body", {})
+        action = body.get("action")
+        if action == "curator_register":
+            return CuratorRegisterTx.from_dict(body)
+        if action == "curator_rotate":
+            return CuratorRotateTx.from_dict(body)
+        if action == "curator_revoke":
+            return CuratorRevokeTx.from_dict(body)
+        return None
+
+    def registry_state_at(self, height: int) -> RegistryState:
+        """Return the registry state after the block at the given height."""
+        if height not in self.registry_states:
+            raise LedgerError(f"registry state not available at height {height}")
+        return self.registry_states[height]
 
     @property
     def last_block(self) -> Block | BlockV2:
@@ -147,13 +214,50 @@ class Ledger:
             raise LedgerError("mining failed to find proof of work")
         return block
 
+    def mine_block_v2(self,
+                      transactions: list[dict[str, Any]],
+                      max_iterations: int = 10_000_000,
+                      timestamp: int | None = None) -> BlockV2:
+        """Create and mine a new v2 block with registry-root commitment."""
+        prev_hash = self.last_block.hash
+        height = self.height() + 1
+        target = self.expected_target_at(height)
+        if timestamp is None:
+            timestamp = self.next_block_timestamp()
+
+        previous_state = self.registry_states[height - 1]
+        registry_root_hex = registry_root(previous_state)
+
+        tx_hashes = [HashEngine.hash_object(tx) for tx in transactions]
+        merkle_root = MerkleTree(tx_hashes).root or bytes(32)
+        merkle_root_hex = HashEngine.hex(merkle_root)
+
+        header = BlockHeaderV2(
+            version=2,
+            prev_hash=prev_hash,
+            merkle_root=merkle_root_hex,
+            registry_root=registry_root_hex,
+            timestamp=timestamp,
+            target=target,
+            nonce=0,
+        )
+        block = BlockV2(header=header, transactions=list(transactions))
+        if not block.mine(max_iterations=max_iterations):
+            raise LedgerError("mining failed to find proof of work")
+        return block
+
     def add_block(self, block: Block | BlockV2) -> bool:
         """Validate and append a block to the chain."""
+        if isinstance(block, BlockV2):
+            return self.add_block_v2(block)
+        return self._add_block_v1(block)
+
+    def _add_block_v1(self, block: Block) -> bool:
+        """Validate and append a v1 block to the chain (deprecated network)."""
         expected_height = self.height() + 1
         expected_target = self.expected_target_at(expected_height)
         expected_prev_hash = self.last_block.hash
 
-        # Basic structural checks
         if block.header.prev_hash != expected_prev_hash:
             return False
         if block.header.target != expected_target:
@@ -171,6 +275,46 @@ class Ledger:
             return False
 
         self.chain.append(block)
+        return True
+
+    def add_block_v2(self, block: BlockV2) -> bool:
+        """Validate and append a v2 block with registry-root commitment."""
+        expected_height = self.height() + 1
+        expected_target = self.expected_target_at(expected_height)
+        expected_prev_hash = self.last_block.hash
+
+        # Structural checks
+        if block.header.prev_hash != expected_prev_hash:
+            return False
+        if block.header.target != expected_target:
+            return False
+        if not isinstance(block.header, BlockHeaderV2):
+            return False
+
+        # Registry-root commitment to previous state
+        previous_state = self.registry_states[expected_height - 1]
+        expected_registry_root = registry_root(previous_state)
+        if block.header.registry_root != expected_registry_root:
+            return False
+
+        median = self.median_past_time(len(self.chain))
+        now = int(time.time())
+
+        if not block.verify(
+            reference_time=now,
+            median_past=median,
+            expected_target=expected_target,
+            transaction_validator=self.transaction_validator,
+        ):
+            return False
+
+        # Apply governance transactions to produce the next state
+        try:
+            new_state = self._apply_transactions(previous_state, block.transactions, expected_height)
+        except (RegistryError, GovernanceError):
+            return False
+        self.chain.append(block)
+        self.registry_states[expected_height] = new_state
         return True
 
     def validate_chain(self, *, from_height: int = 0) -> bool:
@@ -213,10 +357,29 @@ class Ledger:
             ):
                 return False
 
+            # Registry-root commitment for v2 blocks
+            if isinstance(current, BlockV2):
+                expected_root = registry_root(self.registry_states[i - 1])
+                if current.header.registry_root != expected_root:
+                    return False
+                try:
+                    self.registry_states[i] = self._apply_transactions(
+                        self.registry_states[i - 1], current.transactions, i
+                    )
+                except (RegistryError, GovernanceError):
+                    return False
+
         return True
 
-    def chain_work(self) -> float:
-        return sum(work_for_target(b.header.target) for b in self.chain)
+    def chain_work(self) -> int:
+        """Total chain work as an integer sum of per-block work."""
+        total = 0
+        for block in self.chain:
+            if isinstance(block, BlockV2):
+                total += work_for_target_v2(block.header.target)
+            else:
+                total += int(work_for_target(block.header.target))
+        return total
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -236,7 +399,10 @@ class Ledger:
 
 def block_encode(block: Block | BlockV2) -> bytes:
     """Encode a block for network/storage."""
-    header_bytes = BinaryCodec.encode_header(block.header.to_dict())
+    if isinstance(block, BlockV2):
+        header_bytes = BinaryCodec.encode_header_v2(block.header.to_dict())
+    else:
+        header_bytes = BinaryCodec.encode_header(block.header.to_dict())
     tx_count = BinaryCodec.encode_varint(len(block.transactions))
     tx_bytes = b"".join(BinaryCodec.encode_transaction(tx) for tx in block.transactions)
     return header_bytes + tx_count + tx_bytes
@@ -244,6 +410,15 @@ def block_encode(block: Block | BlockV2) -> bytes:
 
 def block_decode(data: bytes) -> tuple[Block | BlockV2, int]:
     """Decode a block."""
+    if len(data) >= 149 and data[0] == BinaryCodec.TYPE_HEADER and int.from_bytes(data[1:5], "little") == 2:
+        header, offset = BinaryCodec.decode_header_v2(data)
+        tx_count, offset = BinaryCodec.decode_varint(data, offset)
+        transactions = []
+        for _ in range(tx_count):
+            tx, offset = BinaryCodec.decode_transaction(data, offset)
+            transactions.append(tx)
+        return BlockV2(BlockHeaderV2.from_dict(header), transactions), offset
+
     header, offset = BinaryCodec.decode_header(data)
     tx_count, offset = BinaryCodec.decode_varint(data, offset)
     transactions = []

@@ -116,15 +116,22 @@ Failure of any transaction causes the entire block to be rejected.
 
 ### Activation-height rule for this design
 
-For Milestone 4D, governance transactions take effect at the height of the
-block that contains them:
+The existing reducer requires that a governance transaction included in block
+`H` specifies an `activation_height` **strictly greater than** `H`:
 
 ```text
-activation_height == H
+activation_height > H
 ```
 
-A future design may introduce a lookahead rule, but that requires additional
-specification and is out of scope for 4D.
+This means the transaction is recorded in block `H` but the new key/record does
+not become active until block `activation_height`.  A curator registered in
+block `H` may therefore first be used for attestations at height
+`activation_height` or later.
+
+This rule preserves the reducer invariants already tested in Milestone 2 and
+keeps 4D focused on chain integration rather than state semantics.  A future
+design may introduce a different lookahead rule, but that requires an explicit
+protocol change.
 
 ---
 
