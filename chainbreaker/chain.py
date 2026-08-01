@@ -13,6 +13,7 @@ from .block import (
     NETWORK_ID,
     Block,
     BlockHeader,
+    BlockV2,
     create_genesis_block,
 )
 from .codec import BinaryCodec, validate_transaction
@@ -30,7 +31,7 @@ class LedgerError(ValueError):
 class Ledger:
     """A proof-of-work ledger."""
 
-    def __init__(self, chain: list[Block] | None = None,
+    def __init__(self, chain: list[Block | BlockV2] | None = None,
                  transaction_validator: Callable[[dict[str, Any]], bool] | None = None,
                  max_block_size: int = 1_000_000,
                  max_transactions: int = 10_000,
@@ -44,7 +45,7 @@ class Ledger:
         self.max_transactions = max_transactions
 
     @property
-    def last_block(self) -> Block:
+    def last_block(self) -> Block | BlockV2:
         return self.chain[-1]
 
     def height(self) -> int:
@@ -114,7 +115,7 @@ class Ledger:
                    transactions: list[dict[str, Any]],
                    max_iterations: int = 10_000_000,
                    coinbase: dict[str, Any] | None = None,
-                   timestamp: int | None = None) -> Block:
+                   timestamp: int | None = None) -> Block | BlockV2:
         """Create and mine a new block."""
         if coinbase is not None:
             transactions = [coinbase] + list(transactions)
@@ -146,7 +147,7 @@ class Ledger:
             raise LedgerError("mining failed to find proof of work")
         return block
 
-    def add_block(self, block: Block) -> bool:
+    def add_block(self, block: Block | BlockV2) -> bool:
         """Validate and append a block to the chain."""
         expected_height = self.height() + 1
         expected_target = self.expected_target_at(expected_height)
@@ -229,11 +230,11 @@ class Ledger:
                   transaction_validator: Callable[[dict[str, Any]], bool] | None = None) -> Ledger:
         if data.get("network_id") != NETWORK_ID:
             raise LedgerError("invalid network ID")
-        chain = [Block.from_dict(b) for b in data["chain"]]
+        chain = [Block.from_dict(b) if "registry_root" not in b["header"] else BlockV2.from_dict(b) for b in data["chain"]]
         return cls(chain, transaction_validator=transaction_validator)
 
 
-def block_encode(block: Block) -> bytes:
+def block_encode(block: Block | BlockV2) -> bytes:
     """Encode a block for network/storage."""
     header_bytes = BinaryCodec.encode_header(block.header.to_dict())
     tx_count = BinaryCodec.encode_varint(len(block.transactions))
@@ -241,7 +242,7 @@ def block_encode(block: Block) -> bytes:
     return header_bytes + tx_count + tx_bytes
 
 
-def block_decode(data: bytes) -> tuple[Block, int]:
+def block_decode(data: bytes) -> tuple[Block | BlockV2, int]:
     """Decode a block."""
     header, offset = BinaryCodec.decode_header(data)
     tx_count, offset = BinaryCodec.decode_varint(data, offset)

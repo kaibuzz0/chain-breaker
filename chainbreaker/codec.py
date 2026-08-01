@@ -193,6 +193,80 @@ class BinaryCodec:
         }, offset
 
     @classmethod
+    def encode_header_v2(cls, header: dict[str, Any]) -> bytes:
+        """Encode v2 BlockHeader as deterministic 149 bytes.
+
+        Field layout:
+            type marker     1 byte   (0x02)
+            version         4 bytes  uint32 LE
+            prev_hash       32 bytes
+            merkle_root     32 bytes
+            registry_root   32 bytes
+            timestamp       8 bytes  uint64 LE
+            target          32 bytes
+            nonce           8 bytes  uint64 LE
+        """
+        try:
+            return b"".join([
+                struct.pack(f"{cls.ENDIAN}B", cls.TYPE_HEADER),
+                struct.pack(f"{cls.ENDIAN}I", int(header["version"])),
+                cls.encode_hash(header["prev_hash"]),
+                cls.encode_hash(header["merkle_root"]),
+                cls.encode_hash(header["registry_root"]),
+                struct.pack(f"{cls.ENDIAN}Q", int(header["timestamp"])),
+                cls.encode_hash(header["target"]),
+                struct.pack(f"{cls.ENDIAN}Q", int(header["nonce"])),
+            ])
+        except (KeyError, ValueError) as exc:
+            raise CodecError(f"invalid header: {exc}") from exc
+
+    @classmethod
+    def decode_header_v2(cls, data: bytes, offset: int = 0) -> tuple[dict[str, Any], int]:
+        """Decode v2 BlockHeader from exactly 149 bytes."""
+        cls._need(data, offset, 1)
+        if data[offset] != cls.TYPE_HEADER:
+            raise CodecError(f"expected header type 0x{cls.TYPE_HEADER:02x}")
+        offset = offset + 1
+
+        cls._need(data, offset, 4)
+        version = struct.unpack_from(f"{cls.ENDIAN}I", data, offset)[0]
+        offset += 4
+
+        cls._need(data, offset, cls.HASH_LEN)
+        prev_hash = cls.decode_hash(data[offset : offset + cls.HASH_LEN])
+        offset += cls.HASH_LEN
+
+        cls._need(data, offset, cls.HASH_LEN)
+        merkle_root = cls.decode_hash(data[offset : offset + cls.HASH_LEN])
+        offset += cls.HASH_LEN
+
+        cls._need(data, offset, cls.HASH_LEN)
+        registry_root = cls.decode_hash(data[offset : offset + cls.HASH_LEN])
+        offset += cls.HASH_LEN
+
+        cls._need(data, offset, 8)
+        timestamp = struct.unpack_from(f"{cls.ENDIAN}Q", data, offset)[0]
+        offset += 8
+
+        cls._need(data, offset, cls.HASH_LEN)
+        target = cls.decode_hash(data[offset : offset + cls.HASH_LEN])
+        offset += cls.HASH_LEN
+
+        cls._need(data, offset, 8)
+        nonce = struct.unpack_from(f"{cls.ENDIAN}Q", data, offset)[0]
+        offset += 8
+
+        return {
+            "version": version,
+            "prev_hash": prev_hash,
+            "merkle_root": merkle_root,
+            "registry_root": registry_root,
+            "timestamp": timestamp,
+            "target": target,
+            "nonce": nonce,
+        }, offset
+
+    @classmethod
     def encode_transaction(cls, tx: dict[str, Any]) -> bytes:
         """Encode a transaction."""
         tx_type = tx.get("type", "")

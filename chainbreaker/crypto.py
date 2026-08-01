@@ -132,11 +132,11 @@ class MerkleTree:
 
 
 def target_to_hex(target: int) -> str:
-    return target.to_bytes(32, "little").hex()
+    return target.to_bytes(32, "big").hex()
 
 
 def hex_to_target(hex_target: str) -> int:
-    return int.from_bytes(bytes.fromhex(hex_target), "little")
+    return int.from_bytes(bytes.fromhex(hex_target), "big")
 
 
 def work_for_target(target: int) -> float:
