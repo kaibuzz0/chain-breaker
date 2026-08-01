@@ -328,7 +328,13 @@ def _apply_register(
         latest_rotation_txid=None,
     )
     new_records = tuple(sorted(state.records + (new_record,), key=lambda r: r.curator_id.encode("utf-8")))
-    return RegistryState(records=new_records)
+    return RegistryState(
+        records=new_records,
+        governance_version=state.governance_version,
+        network_id=state.network_id,
+        governance_keys=state.governance_keys,
+        threshold=state.threshold,
+    )
 
 
 def _require_active_record(state: RegistryState, curator_id: str, public_key_hex: str) -> CuratorRecord:

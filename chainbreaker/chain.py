@@ -65,7 +65,12 @@ class Ledger:
         self.governance_threshold = governance_threshold if governance_threshold is not None else GENESIS_THRESHOLD
         self._governance_context = GovernanceContext(self.governance_keys, self.governance_threshold)
         self.registry_states: dict[int, RegistryState] = {}
-        self._replay_registry_states()
+        # Ensure the genesis block's registry root matches our governance configuration
+        if isinstance(self.chain[0], BlockV2):
+            self._replay_registry_states()
+        else:
+            self.registry_states[0] = RegistryState.genesis(self.governance_keys, self.governance_threshold)
+            self._replay_registry_states()
 
     def _replay_registry_states(self) -> None:
         """Recompute registry_states from genesis using only the chain.
