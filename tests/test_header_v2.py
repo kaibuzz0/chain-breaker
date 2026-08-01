@@ -139,3 +139,31 @@ def test_header_v2_version_zero_rejected_on_decode():
     encoded = BinaryCodec.encode_header_v2(header)
     decoded, _ = BinaryCodec.decode_header_v2(encoded)
     assert decoded["version"] == 0
+
+
+def test_header_v1_and_v2_hashes_are_different_for_same_logical_fields():
+    """Hash domain separation: v1 and v2 headers with identical common fields
+    must produce different block hashes because their preimages differ."""
+    common = {
+        "version": 2,  # semantic version; v1 codec carries it as-is
+        "prev_hash": "0" * 64,
+        "merkle_root": "1" * 64,
+        "timestamp": 1704067200,
+        "target": "0000ffff00000000000000000000000000000000000000000000000000000000",
+        "nonce": 42,
+    }
+    v1_header = {
+        "version": 2,
+        "prev_hash": common["prev_hash"],
+        "merkle_root": common["merkle_root"],
+        "timestamp": common["timestamp"],
+        "target": common["target"],
+        "nonce": common["nonce"],
+    }
+    v2_header = {**common, "registry_root": "2" * 64}
+
+    from chainbreaker.block import BlockHeader, BlockHeaderV2
+
+    v1_hash = BlockHeader.from_dict(v1_header).hash()
+    v2_hash = BlockHeaderV2.from_dict(v2_header).hash()
+    assert v1_hash != v2_hash
