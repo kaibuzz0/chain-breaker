@@ -1,103 +1,71 @@
 # Chain-Breaker
 
-A working, minimal scripture-preservation ledger.
+A minimal, consensus-first ledger for preserving canonical, signed scripture and archive manifests.
 
-Chain-Breaker anchors content-addressed document manifests and curator
-attestations in a proof-of-work blockchain. It is intentionally **not a
-cryptocurrency** in this release; the currency/tokenomics features from earlier
-prototypes have been removed because they were not safe.
+This repository is currently an **alpha prototype** undergoing a consensus-correctness, archival-integrity, and adversarial-testing phase. It is **not** production-ready and does **not** yet implement P2P networking, wallets, tokenomics, or encrypted vaults.
 
-## What works now
+## What it proves today
 
-- Deterministic genesis block with hard-coded specification.
-- SHA-256 / double-SHA-256 hashing and Merkle trees.
-- Ed25519 curator keys and attestation signatures.
-- Content-addressed document archive (store by SHA-256 hash).
-- Proof-of-work block mining and chain validation.
-- Difficulty retargeting that moves in the correct direction.
-- Canonical binary serialization with explicit little-endian encoding.
-- Defensive bounds checking in all decoders.
+* A single canonical `chainbreaker/` package.
+* 256-bit integer proof-of-work target, not a bit-count proxy.
+* Difficulty retargeting only at fixed boundaries using accumulated work.
+* Double-SHA-256 block hashing (not triple) with a hard-coded canonical genesis.
+* Ed25519 curator attestations bound to an activation-height registry.
+* Separation of submission freshness from historical signature validity.
+* Enforced transaction schemas and witness validation inside consensus.
+* Content-addressed archive with signed manifest schema.
 
-## What was removed
+## Protocol overview
 
-- Broken cached-hash mining loop.
-- Trusted-stored-hash proof-of-work bypass.
-- Non-public-verifying E8 "quantum-resistant" signature claims.
-- Authority-name spoofing (now keys are bound to curator IDs).
-- Public-key-string authorization.
-- Floating-point consensus fields.
-- Truncated transaction / Merkle hashes.
-- 700 MB of copyrighted bibles from the source tree (replaced with a small
-  public-domain sample set and a downloader script for users who supply their
-  own legally obtained texts).
-- Duplicate `chain-breaker/` and root-level prototype implementations.
+See `docs/PROTOCOL.md` for the complete specification of:
 
-## Install
-
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
-```
+* transaction encoding
+* block hashing
+* target calculation and retargeting
+* chain-work accumulation
+* genesis constants
+* witness pre-image and validation
+* curator-registry state, activation, revocation, and rotation
 
 ## Quick start
 
-Print the canonical genesis block:
-
 ```bash
+python -m venv .venv
+source .venv/bin/activate  # .venv\\Scripts\\activate on Windows
+pip install -e ".[dev]"
+
+# Show the canonical genesis block
 chainbreaker genesis
+
+# Generate a curator keypair
+chainbreaker curator generate --curator-id alice
+
+# Add a document to the archive
+chainbreaker archive add --file README.md --title "README" --media-type text/plain
+
+# Mine a block anchoring a manifest (requires a local registry.json)
+chainbreaker mine --manifest-hash <hash>
 ```
 
-Generate a curator key:
-
-```bash
-chainbreaker curator generate --out curator.json
-```
-
-Add a document to the archive:
-
-```bash
-echo "In the beginning was the Word." > john.txt
-chainbreaker archive add john.txt --title "John 1:1 sample" --language en
-```
-
-Create and attest a scripture transaction:
-
-```bash
-cat > tx.json <<'EOF'
-{
-  "version": 1,
-  "type": "scripture",
-  "body": {
-    "ref": "John 1:1",
-    "content_hash": "PUT_HASH_HERE"
-  },
-  "witnesses": []
-}
-EOF
-chainbreaker curator attest --wallet curator.json --curator-id my-curator \
-  --transaction tx.json --out attested-tx.json
-```
-
-Mine it into the ledger:
-
-```bash
-chainbreaker node mine attested-tx.json
-```
-
-Verify the ledger:
-
-```bash
-chainbreaker node verify
-```
-
-## Development
+## Verification
 
 ```bash
 pytest -v
+pytest --cov=chainbreaker --cov-report=term-missing
 ruff check chainbreaker tests
 mypy chainbreaker
+python -m build
+pip-audit -r requirements.txt
+bandit -r chainbreaker
 ```
+
+## Known unresolved risks
+
+* **CLI tests are smoke tests only.** The `mine` command currently uses a placeholder signer identity (`alpha`) and does not yet enforce registry governance on chain.
+* **Registry transactions are parsed but not committed into the ledger state machine.** They can be injected into blocks, but the ledger does not automatically derive a deterministic registry from chain history.
+* **No network layer.** All consensus rules are validated locally; a future P2P layer must replay the same deterministic rules.
+* **No checkpointing or long-range-attack protection.** Genesis and chain-work are the only trust anchors.
+* **Canonical JSON is Python-only.** A cross-language binary manifest standard is planned for a later phase.
 
 ## License
 

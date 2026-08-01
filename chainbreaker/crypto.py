@@ -12,15 +12,14 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, is_dataclass
-from typing import Any, List, Optional
+from typing import Any
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
-from cryptography.hazmat.primitives import serialization
-from cryptography.exceptions import InvalidSignature
-
 
 Hash = str  # 64-char lowercase hex SHA-256 digest
 
@@ -41,23 +40,43 @@ class HashEngine:
         return data.hex()
 
     @classmethod
-    def hash_bytes(cls, data: bytes) -> Hash:
-        return cls.hex(cls.sha256(data))
+    def hash_single(cls, data: bytes) -> bytes:
+        """Single SHA-256 digest."""
+        return cls.sha256(data)
+
+    @classmethod
+    def hash_single_hex(cls, data: bytes) -> Hash:
+        return cls.hex(cls.hash_single(data))
+
+    @classmethod
+    def hash_double(cls, data: bytes) -> bytes:
+        """Double SHA-256 digest (Bitcoin style)."""
+        return cls.double_sha256(data)
+
+    @classmethod
+    def hash_double_hex(cls, data: bytes) -> Hash:
+        return cls.hex(cls.hash_double(data))
 
     @classmethod
     def canonical_json(cls, obj: Any) -> bytes:
         """Return canonical UTF-8 JSON bytes with sorted keys."""
         if is_dataclass(obj) and not isinstance(obj, type):
             obj = asdict(obj)
-        return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return json.dumps(
+            obj,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
 
     @classmethod
     def hash_object(cls, obj: Any) -> bytes:
+        """Single SHA-256 digest of the canonical JSON of an object."""
         return cls.sha256(cls.canonical_json(obj))
 
     @classmethod
     def hash_object_hex(cls, obj: Any) -> Hash:
-        return cls.hash_bytes(cls.canonical_json(obj))
+        return cls.hex(cls.hash_object(obj))
 
 
 class MerkleTree:
@@ -67,13 +86,13 @@ class MerkleTree:
     Duplicate last leaf when level length is odd.
     """
 
-    def __init__(self, leaves: List[bytes]):
+    def __init__(self, leaves: list[bytes]):
         self.leaves = leaves
-        self.levels: List[List[bytes]] = []
+        self.levels: list[list[bytes]] = []
         if leaves:
             self.levels = self._build(leaves)
 
-    def _build(self, leaves: List[bytes]) -> List[List[bytes]]:
+    def _build(self, leaves: list[bytes]) -> list[list[bytes]]:
         levels = [list(leaves)]
         current = levels[0]
         while len(current) > 1:
@@ -87,12 +106,12 @@ class MerkleTree:
         return levels
 
     @property
-    def root(self) -> Optional[bytes]:
+    def root(self) -> bytes | None:
         if not self.levels:
             return None
         return self.levels[-1][0]
 
-    def get_proof(self, index: int) -> List[bytes]:
+    def get_proof(self, index: int) -> list[bytes]:
         proof = []
         for level in self.levels[:-1]:
             sibling = index + 1 if index % 2 == 0 else index - 1
@@ -101,7 +120,7 @@ class MerkleTree:
         return proof
 
     @staticmethod
-    def verify_proof(root: bytes, leaf: bytes, proof: List[bytes], index: int) -> bool:
+    def verify_proof(root: bytes, leaf: bytes, proof: list[bytes], index: int) -> bool:
         current = leaf
         for sibling in proof:
             if index % 2 == 0:
@@ -112,6 +131,29 @@ class MerkleTree:
         return current == root
 
 
+def target_to_hex(target: int) -> str:
+    return target.to_bytes(32, "little").hex()
+
+
+def hex_to_target(hex_target: str) -> int:
+    return int.from_bytes(bytes.fromhex(hex_target), "little")
+
+
+def work_for_target(target: int) -> float:
+    """Approximate work represented by a target."""
+    if target <= 0:
+        raise ValueError("target must be positive")
+    return (2**256 - target) / (target + 1)
+
+
+def target_to_difficulty(target: int) -> float:
+    return 0x00000000FFFF0000000000000000000000000000000000000000000000000000 / target
+
+
+def difficulty_to_target(difficulty: float) -> int:
+    return int(0x00000000FFFF0000000000000000000000000000000000000000000000000000 / difficulty)
+
+
 def encode_public_key(pk: Ed25519PublicKey) -> str:
     return pk.public_bytes(
         encoding=serialization.Encoding.Raw,
@@ -120,7 +162,10 @@ def encode_public_key(pk: Ed25519PublicKey) -> str:
 
 
 def decode_public_key(hex_key: str) -> Ed25519PublicKey:
-    return Ed25519PublicKey.from_public_bytes(bytes.fromhex(hex_key))
+    raw = bytes.fromhex(hex_key)
+    if len(raw) != 32:
+        raise ValueError("Ed25519 public key must be 32 bytes")
+    return Ed25519PublicKey.from_public_bytes(raw)
 
 
 def encode_private_key(sk: Ed25519PrivateKey) -> str:
@@ -132,7 +177,10 @@ def encode_private_key(sk: Ed25519PrivateKey) -> str:
 
 
 def decode_private_key(hex_key: str) -> Ed25519PrivateKey:
-    return Ed25519PrivateKey.from_private_bytes(bytes.fromhex(hex_key))
+    raw = bytes.fromhex(hex_key)
+    if len(raw) != 32:
+        raise ValueError("Ed25519 private key must be 32 bytes")
+    return Ed25519PrivateKey.from_private_bytes(raw)
 
 
 def generate_keypair() -> tuple[Ed25519PrivateKey, Ed25519PublicKey]:
@@ -146,7 +194,10 @@ def sign(sk: Ed25519PrivateKey, message: bytes) -> str:
 
 def verify(pk: Ed25519PublicKey, message: bytes, signature_hex: str) -> bool:
     try:
-        pk.verify(bytes.fromhex(signature_hex), message)
+        raw = bytes.fromhex(signature_hex)
+        if len(raw) != 64:
+            return False
+        pk.verify(raw, message)
         return True
-    except InvalidSignature:
+    except (InvalidSignature, ValueError, TypeError):
         return False
