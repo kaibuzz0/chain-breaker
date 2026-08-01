@@ -78,6 +78,45 @@ class BlockHeader:
 
 
 @dataclass
+class BlockHeaderV2:
+    """Protocol v2 block header with registry-root commitment."""
+
+    version: int
+    prev_hash: str
+    merkle_root: str
+    registry_root: str
+    timestamp: int  # Unix seconds
+    target: int  # 256-bit integer
+    nonce: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "version": self.version,
+            "prev_hash": self.prev_hash,
+            "merkle_root": self.merkle_root,
+            "registry_root": self.registry_root,
+            "timestamp": self.timestamp,
+            "target": target_to_hex(self.target),
+            "nonce": self.nonce,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> BlockHeaderV2:
+        return cls(
+            version=int(data["version"]),
+            prev_hash=str(data["prev_hash"]),
+            merkle_root=str(data["merkle_root"]),
+            registry_root=str(data["registry_root"]),
+            timestamp=int(data["timestamp"]),
+            target=hex_to_target(str(data["target"])),
+            nonce=int(data["nonce"]),
+        )
+
+    def hash(self) -> str:
+        return HashEngine.hash_double_hex(BinaryCodec.encode_header_v2(self.to_dict()))
+
+
+@dataclass
 class Block:
     header: BlockHeader
     transactions: list[dict[str, Any]]

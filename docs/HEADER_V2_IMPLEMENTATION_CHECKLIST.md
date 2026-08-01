@@ -38,7 +38,7 @@ The following must NOT change:
   - nonce at offset 141, size 8
 - [ ] Multi-byte integers are little-endian.
 - [ ] Hash fields are 32 raw bytes, not hex strings.
-- [ ] Type marker is `0x01`.
+- [ ] Type marker is `0x02`.
 - [ ] Version `2` is encoded.
 - [ ] Canonical round-trip holds:
   ```text

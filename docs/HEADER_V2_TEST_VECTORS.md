@@ -165,7 +165,7 @@ nonce = 123456789
 ### Expected canonical bytes (hex)
 
 ```text
-01                                      # type marker
+02                                      # type marker
 02000000                                # version = 2 LE
 0000000000000000000000000000000000000000000000000000000000000001  # prev_hash
 abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefab      # merkle_root

@@ -41,7 +41,7 @@ under v2 rules.
 
 A v1 node that receives a v2 header will:
 
-1. Decode the first byte as the type marker (`0x01`).
+1. Decode the first byte as the type marker (`0x02`).
 2. Read the next 4 bytes as the version (`2`).
 3. Because v1 expects `PROTOCOL_VERSION = 1`, the node rejects the block.
 
@@ -51,7 +51,7 @@ The rejection is deterministic and safe.
 
 A v2 node that receives a v1 header will:
 
-1. Decode the first byte as the type marker (`0x01`).
+1. Decode the first byte as the type marker (`0x02`).
 2. Read the next 4 bytes as the version (`1`).
 3. Because v2 expects `PROTOCOL_VERSION = 2`, the node rejects the block.
 
@@ -85,7 +85,7 @@ start positions.
 
 | Field          | Type      | Size | Start | End  | Notes |
 |----------------|-----------|------|-------|------|-------|
-| type marker    | uint8     | 1    | 0     | 1    | `0x01` (`BinaryCodec.TYPE_HEADER`) |
+| type marker    | uint8     | 1    | 0     | 1    | `0x02` (`BinaryCodec.TYPE_HEADER`) |
 | version        | uint32 LE | 4    | 1     | 5    | protocol version = `2` |
 | prev_hash      | bytes     | 32   | 5     | 37   | SHA-256 of previous header, raw 32 bytes |
 | merkle_root    | bytes     | 32   | 37    | 69   | transaction Merkle root, raw 32 bytes |
@@ -112,7 +112,7 @@ block hash.
 
 ### Validation rules
 
-- The type marker must equal `0x01`.
+- The type marker must equal `0x02`.
 - The version must equal `2`.
 - `prev_hash` must be exactly 32 bytes.
 - `merkle_root` must be exactly 32 bytes.
