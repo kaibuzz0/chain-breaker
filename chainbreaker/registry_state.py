@@ -83,7 +83,13 @@ class RegistryState:
 
     def __hash__(self) -> int:
         # tuples are hashable; records are frozen dataclasses
-        return hash((self.network_id, self.governance_version, self.records))
+        return hash((
+            self.network_id,
+            self.governance_version,
+            self.governance_keys,
+            self.threshold,
+            self.records,
+        ))
 
     def by_id(self, curator_id: str) -> CuratorRecord | None:
         matches = [r for r in self.records if r.curator_id == curator_id]
