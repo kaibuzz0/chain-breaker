@@ -1,43 +1,60 @@
 
-import pytest
+from chainbreaker.block import (
+    MAX_TARGET,
+    Block,
+    BlockHeader,
+    create_genesis_block,
+    header_hash,
+    satisfies_pow,
+)
+from chainbreaker.codec import BinaryCodec
 
-from chainbreaker.block import create_genesis_block, Block, BlockHeader
-from chainbreaker.chain import Ledger
-from chainbreaker.crypto import HashEngine
 
-
-def test_genesis_verifies():
+def test_genesis_hardcoded():
     g = create_genesis_block()
     assert g.verify(allow_genesis=True)
+    assert g.hash == "00001ec5b63d845f0afa2e499817c34a7e0de2b1c53675171645f60f36ea927c"
+    assert g.header.nonce == 116224
 
 
-def test_genesis_timestamp_historical():
+def test_genesis_to_dict_roundtrip():
     g = create_genesis_block()
-    assert g.header.timestamp == 1704067200
+    g2 = Block.from_dict(g.to_dict())
+    assert g2.hash == g.hash
 
 
-def test_fake_hash_deserialization_is_recomputed():
+def test_header_hash_is_double_sha256():
+    h = {
+        "version": 1,
+        "prev_hash": "0" * 64,
+        "merkle_root": "a" * 64,
+        "timestamp": 1,
+        "target": "0" * 63 + "1",
+        "nonce": 0,
+    }
+    from chainbreaker.crypto import HashEngine
+    expected = HashEngine.hash_double_hex(BinaryCodec.encode_header(h))
+    assert header_hash(h) == expected
+
+
+def test_mine_block():
+    header = BlockHeader(1, "0" * 64, "a" * 64, 1704067200, MAX_TARGET, 0)
+    block = Block(header, [])
+    assert block.mine(max_iterations=1_000_000)
+    assert satisfies_pow(block.hash, MAX_TARGET)
+
+
+def test_block_rejects_tampered_hash():
     g = create_genesis_block()
-    header = BlockHeader(
-        version=1,
-        prev_hash=g.hash,
-        merkle_root="0" * 64,
-        timestamp=g.header.timestamp + 600,
-        difficulty=g.header.difficulty,
-        nonce=0,
-    )
-    block = Block(header=header, transactions=[])
-    # Attacker supplies a fake stored hash with enough zeros
-    forged_dict = block.to_dict()
-    forged_dict["hash"] = "0" * 64
-    reloaded = Block.from_dict(forged_dict)
-    assert reloaded.hash != "0" * 64
-    assert not reloaded.verify(median_past=g.header.timestamp)
+    bad = Block.from_dict(g.to_dict())
+    bad.header.nonce += 1
+    assert not bad.verify(allow_genesis=True)
 
 
-def test_mine_and_extend():
-    ledger = Ledger()
-    tx = {"version": 1, "type": "test", "body": {"hello": "world"}, "witnesses": []}
-    block = ledger.mine_block([tx], max_iterations=1_000_000)
-    assert block.verify(median_past=ledger.chain[-2].header.timestamp)
-    assert ledger.validate_chain()
+def test_target_bounds():
+    header = BlockHeader(1, "0" * 64, "a" * 64, 1704067200, MAX_TARGET + 1, 0)
+    block = Block(header, [])
+    assert not block.verify()
+    header2 = BlockHeader(1, "0" * 64, "a" * 64, 1704067200, 0, 0)
+    block2 = Block(header2, [])
+    assert not block2.verify()

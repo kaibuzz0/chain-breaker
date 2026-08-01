@@ -1,152 +1,256 @@
 
-"""Curator / witness registry and attestation verification."""
+"""Curator registry and attestation logic."""
 
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from dataclasses import asdict, dataclass
+from typing import Any
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+
+from .block import NETWORK_ID
+from .codec import validate_transaction
 from .crypto import (
     HashEngine,
-    encode_public_key,
     decode_public_key,
+    encode_public_key,
+    generate_keypair,
     sign,
     verify,
-    Ed25519PrivateKey,
-    Ed25519PublicKey,
 )
-
-
-class WitnessError(ValueError):
-    """Raised when witness data is invalid."""
 
 
 @dataclass
 class Curator:
     curator_id: str
     public_key_hex: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    activation_height: int = 0
+    revocation_height: int | None = None
+    previous_key_hex: str | None = None
+
+    def is_active_at(self, height: int) -> bool:
+        return (
+            height >= self.activation_height
+            and (self.revocation_height is None or height < self.revocation_height)
+        )
 
 
 class Registry:
-    """Immutable-in-memory curator registry."""
+    """Curator registry bound to a deterministic chain state."""
 
-    def __init__(self, curators: Optional[List[Curator]] = None):
-        self._by_id: Dict[str, Curator] = {}
-        for c in curators or []:
-            if c.curator_id in self._by_id:
-                raise WitnessError(f"duplicate curator id: {c.curator_id}")
-            self._by_id[c.curator_id] = c
-
-    def get(self, curator_id: str) -> Optional[Curator]:
-        return self._by_id.get(curator_id)
-
-    def list(self) -> List[Curator]:
-        return list(self._by_id.values())
+    def __init__(self, entries: list[Curator] | None = None):
+        self._by_id: dict[str, Curator] = {}
+        if entries:
+            for c in entries:
+                self.register(c)
 
     def register(self, curator: Curator) -> None:
+        if not curator.curator_id:
+            raise ValueError("curator_id must not be empty")
         if curator.curator_id in self._by_id:
-            raise WitnessError(f"duplicate curator id: {curator.curator_id}")
+            raise ValueError(f"curator_id {curator.curator_id!r} already registered")
+        if curator.revocation_height is not None and curator.revocation_height < curator.activation_height:
+            raise ValueError("revocation_height must be >= activation_height")
         self._by_id[curator.curator_id] = curator
 
+    def add(self, curator_id: str, public_key_hex: str, activation_height: int = 0,
+            revocation_height: int | None = None, previous_key_hex: str | None = None) -> None:
+        """Convenience method to register a curator from raw fields."""
+        self.register(Curator(
+            curator_id=curator_id,
+            public_key_hex=public_key_hex,
+            activation_height=activation_height,
+            revocation_height=revocation_height,
+            previous_key_hex=previous_key_hex,
+        ))
 
-def make_attestation_message(network_id: str, version: int,
-                             body_hash: str, curator_id: str,
-                             timestamp: int) -> bytes:
+    def get(self, curator_id: str) -> Curator | None:
+        return self._by_id.get(curator_id)
+
+    def is_active(self, curator_id: str, height: int) -> bool:
+        curator = self.get(curator_id)
+        return curator is not None and curator.is_active_at(height)
+
+    def active_keys(self, height: int) -> dict[str, str]:
+        return {
+            c.curator_id: c.public_key_hex
+            for c in self._by_id.values()
+            if c.is_active_at(height)
+        }
+
+    def apply_registry_transaction(self, tx_body: dict[str, Any], height: int) -> None:
+        """Update registry state from a validated registry transaction."""
+        action = tx_body["action"]
+        curator_id = tx_body["curator_id"]
+        public_key_hex = tx_body["public_key_hex"]
+        if action == "add":
+            self.register(Curator(
+                curator_id=curator_id,
+                public_key_hex=public_key_hex,
+                activation_height=tx_body["activation_height"],
+                revocation_height=tx_body.get("revocation_height"),
+                previous_key_hex=tx_body.get("previous_key_hex"),
+            ))
+        elif action == "revoke":
+            existing = self.get(curator_id)
+            if existing is None:
+                raise ValueError(f"cannot revoke unknown curator {curator_id}")
+            existing.revocation_height = min(
+                existing.revocation_height or height,
+                height,
+            )
+        elif action == "rotate":
+            existing = self.get(curator_id)
+            if existing is None:
+                raise ValueError(f"cannot rotate unknown curator {curator_id}")
+            existing.revocation_height = height
+            self.register(Curator(
+                curator_id=curator_id,
+                public_key_hex=public_key_hex,
+                activation_height=height,
+                revocation_height=tx_body.get("revocation_height"),
+                previous_key_hex=existing.public_key_hex,
+            ))
+
+    def to_list(self) -> list[dict[str, Any]]:
+        return [asdict(c) for c in self._by_id.values()]
+
+    @classmethod
+    def from_list(cls, items: list[dict[str, Any]]) -> Registry:
+        return cls([Curator(**c) for c in items])
+
+
+def attestation_message(body_hash: str, curator_id: str, timestamp: int) -> bytes:
+    """Canonical message that a curator signs."""
     msg = {
-        "network_id": network_id,
-        "version": version,
+        "network_id": NETWORK_ID,
+        "version": 1,
         "body_hash": body_hash,
         "curator_id": curator_id,
         "timestamp": timestamp,
     }
-    return HashEngine.canonical_json(msg)
+    return HashEngine.hash_object(msg)
 
 
-class Witness:
-    def __init__(self, curator_id: str, timestamp: int, signature_hex: str):
-        self.curator_id = curator_id
-        self.timestamp = timestamp
-        self.signature_hex = signature_hex
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "curator_id": self.curator_id,
-            "timestamp": self.timestamp,
-            "signature": self.signature_hex,
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> Witness:
-        return cls(
-            curator_id=str(data["curator_id"]),
-            timestamp=int(data["timestamp"]),
-            signature_hex=str(data["signature"]),
-        )
+def sign_attestation(sk: Ed25519PrivateKey,
+                     body_hash: str,
+                     curator_id: str,
+                     timestamp: int | None = None) -> dict[str, Any]:
+    if timestamp is None:
+        timestamp = int(time.time())
+    msg = attestation_message(body_hash, curator_id, timestamp)
+    return {
+        "curator_id": curator_id,
+        "timestamp": timestamp,
+        "signature": sign(sk, msg),
+    }
 
 
-def sign_transaction(
-    private_key: Ed25519PrivateKey,
-    curator_id: str,
-    tx: Dict[str, Any],
-    network_id: str,
-) -> Witness:
-    version = int(tx["version"])
-    body_hash = HashEngine.hash_object_hex(tx["body"])
-    timestamp = int(time.time())
-    message = make_attestation_message(network_id, version, body_hash, curator_id, timestamp)
-    return Witness(curator_id=curator_id, timestamp=timestamp, signature_hex=sign(private_key, message))
-
-
-def verify_witness(
-    witness: Witness,
-    tx: Dict[str, Any],
-    registry: Registry,
-    network_id: str,
-    max_age_seconds: int = 86400,
-    now: Optional[int] = None,
-) -> bool:
-    curator = registry.get(witness.curator_id)
-    if curator is None:
+def verify_attestation(registry: Registry,
+                       witness: dict[str, Any],
+                       body_hash: str,
+                       block_height: int) -> bool:
+    """Cryptographic and registry validity only. No freshness check."""
+    try:
+        curator_id = witness["curator_id"]
+        signature_hex = witness["signature"]
+        timestamp = witness["timestamp"]
+        if not isinstance(curator_id, str) or not isinstance(signature_hex, str):
+            return False
+        if not isinstance(timestamp, int) or isinstance(timestamp, bool):
+            return False
+        curator = registry.get(curator_id)
+        if curator is None:
+            return False
+        if not curator.is_active_at(block_height):
+            return False
+        pk = decode_public_key(curator.public_key_hex)
+        msg = attestation_message(body_hash, curator_id, timestamp)
+        return verify(pk, msg, signature_hex)
+    except (ValueError, KeyError, TypeError):
         return False
 
-    version = int(tx["version"])
-    body_hash = HashEngine.hash_object_hex(tx["body"])
-    message = make_attestation_message(network_id, version, body_hash,
-                                       witness.curator_id, witness.timestamp)
+
+def is_fresh(witness: dict[str, Any], now: int | None = None,
+             max_age_seconds: int = 86400) -> bool:
+    """Freshness check for initial submission only."""
+    if now is None:
+        now = int(time.time())
     try:
-        pk = decode_public_key(curator.public_key_hex)
+        return abs(now - int(witness["timestamp"])) <= max_age_seconds
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def verify_transaction_witnesses(registry: Registry,
+                                 tx: dict[str, Any],
+                                 block_height: int,
+                                 *,
+                                 require_fresh: bool = False,
+                                 now: int | None = None,
+                                 min_attestations: int = 1) -> bool:
+    """Verify all witnesses for a transaction."""
+    try:
+        validate_transaction(tx)
     except Exception:
         return False
-    if not verify(pk, message, witness.signature_hex):
-        return False
 
-    now = now or int(time.time())
-    if abs(now - witness.timestamp) > max_age_seconds:
-        return False
-    return True
-
-
-def verify_transaction_witnesses(
-    tx: Dict[str, Any],
-    registry: Registry,
-    network_id: str,
-    required: int = 1,
-    **kwargs: Any,
-) -> bool:
-    witnesses_raw = tx.get("witnesses", [])
-    if len(witnesses_raw) < required:
-        return False
-
-    seen: Set[str] = set()
+    body_hash = HashEngine.hash_object_hex(tx["body"])
+    seen_curators: set[str] = set()
     valid = 0
-    for w in witnesses_raw:
-        witness = Witness.from_dict(w)
-        if witness.curator_id in seen:
+    for witness in tx["witnesses"]:
+        curator_id = witness.get("curator_id")
+        if curator_id in seen_curators:
             return False
-        seen.add(witness.curator_id)
-        if verify_witness(witness, tx, registry, network_id, **kwargs):
-            valid += 1
+        seen_curators.add(curator_id)
+        if not verify_attestation(registry, witness, body_hash, block_height):
+            return False
+        if require_fresh and not is_fresh(witness, now=now):
+            return False
+        valid += 1
+    return valid >= min_attestations
 
-    return valid >= required
+
+class CuratorSigner:
+    """Helper to generate keys and sign attestations."""
+
+    def __init__(self, curator_id: str, sk: Ed25519PrivateKey | None = None, pk: Ed25519PublicKey | None = None):
+        self.curator_id = curator_id
+        if sk is None:
+            sk, pk = generate_keypair()
+        else:
+            if pk is None:
+                pk = sk.public_key()
+        if sk is None or pk is None:
+            raise ValueError("CuratorSigner requires a private key")
+        self.sk = sk
+        self.pk = pk
+        self.public_key_hex = encode_public_key(pk)
+
+    def as_curator(self, activation_height: int = 0, revocation_height: int | None = None) -> Curator:
+        return Curator(
+            curator_id=self.curator_id,
+            public_key_hex=self.public_key_hex,
+            activation_height=activation_height,
+            revocation_height=revocation_height,
+        )
+
+    def sign_attestation(self, network_id: str, version: int, body_hash: str, timestamp: int | None = None) -> dict[str, Any]:
+        """Sign an attestation for a given body hash."""
+        if timestamp is None:
+            timestamp = int(time.time())
+        msg = attestation_message(body_hash, self.curator_id, timestamp)
+        return {
+            "curator_id": self.curator_id,
+            "timestamp": timestamp,
+            "signature": sign(self.sk, msg),
+        }
+
+    def sign_manifest(self, body: dict[str, Any], timestamp: int | None = None) -> dict[str, Any]:
+        """Backwards-compatible alias that signs a manifest body."""
+        body_hash = HashEngine.hash_object_hex(body)
+        return self.sign_attestation(network_id=NETWORK_ID, version=1, body_hash=body_hash, timestamp=timestamp)
+
+        body_hash = HashEngine.hash_object_hex(body)
+        return sign_attestation(self.sk, body_hash, self.curator_id, timestamp)

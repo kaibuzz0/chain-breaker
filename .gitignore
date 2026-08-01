@@ -27,3 +27,6 @@ node-storage/
 .vscode/
 .idea/
 *.swp
+
+.ruff_cache/
+.mypy_cache/
