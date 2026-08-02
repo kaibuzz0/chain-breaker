@@ -86,6 +86,19 @@ class Ledger:
                 height,
             )
 
+    def _state_at(self, height: int) -> RegistryState:
+        """Return the registry state at the given height by replaying the chain.
+
+        This is the authoritative path.  It recomputes from genesis so that
+        cached state can never be trusted as authoritative.
+        """
+        if height < 0 or height >= len(self.chain):
+            raise LedgerError(f"invalid height {height} for state lookup")
+        state = RegistryState.genesis(self.governance_keys, self.governance_threshold)
+        for h in range(1, height + 1):
+            state = self._apply_transactions(state, self.chain[h].transactions, h)
+        return state
+
     def _apply_transactions(self, state: RegistryState, transactions: list[dict[str, Any]], height: int) -> RegistryState:
         """Fold governance transactions into a scratch state copy."""
         new_state = state
@@ -230,7 +243,7 @@ class Ledger:
         if timestamp is None:
             timestamp = self.next_block_timestamp()
 
-        previous_state = self.registry_states[height - 1]
+        previous_state = self._state_at(height - 1)
         registry_root_hex = registry_root(previous_state)
 
         tx_hashes = [HashEngine.hash_object(tx) for tx in transactions]
@@ -296,8 +309,8 @@ class Ledger:
         if not isinstance(block.header, BlockHeaderV2):
             return False
 
-        # Registry-root commitment to previous state
-        previous_state = self.registry_states[expected_height - 1]
+        # Registry-root commitment to previous state (replayed, not cached)
+        previous_state = self._state_at(expected_height - 1)
         expected_registry_root = registry_root(previous_state)
         if block.header.registry_root != expected_registry_root:
             return False
@@ -364,15 +377,18 @@ class Ledger:
 
             # Registry-root commitment for v2 blocks
             if isinstance(current, BlockV2):
-                expected_root = registry_root(self.registry_states[i - 1])
+                previous_state = self._state_at(i - 1)
+                expected_root = registry_root(previous_state)
                 if current.header.registry_root != expected_root:
                     return False
                 try:
-                    self.registry_states[i] = self._apply_transactions(
-                        self.registry_states[i - 1], current.transactions, i
-                    )
+                    recomputed_state = self._apply_transactions(previous_state, current.transactions, i)
                 except (RegistryError, GovernanceError):
                     return False
+                # Detect cache corruption: cached state must match recomputed state
+                if i in self.registry_states and self.registry_states[i] != recomputed_state:
+                    return False
+                self.registry_states[i] = recomputed_state
 
         return True
 
