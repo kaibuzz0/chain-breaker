@@ -23,7 +23,7 @@ Merkle-inclusion, and replay questions that the header field solves directly.
 
 | Offset | Field | Type | Size | Notes |
 |--------|-------|------|------|-------|
-| 0 | type marker | uint8 | 1 | `0x01` (BinaryCodec.TYPE_HEADER) |
+| 0 | type marker | uint8 | 1 | `0x02` (BinaryCodec.TYPE_HEADER) |
 | 1 | version | uint32 LE | 4 | protocol version = `2` |
 | 5 | prev_hash | bytes | 32 | SHA-256 hex string, 32 raw bytes |
 | 37 | merkle_root | bytes | 32 | transaction Merkle root, 32 raw bytes |
@@ -88,10 +88,16 @@ the `registry_root` committed in block `H+1`.
 Genesis block (`H=0`) commits to:
 
 ```text
-header.registry_root = registry_root(RegistryState.empty())
+header.registry_root = registry_root(
+    RegistryState.genesis(
+        governance_keys=GENESIS_GOVERNANCE_KEYS,
+        threshold=GENESIS_THRESHOLD,
+    )
+)
 ```
 
-because no transactions exist before genesis.
+because the genesis registry state includes the bootstrap governance authority
+(Model B).
 
 ---
 

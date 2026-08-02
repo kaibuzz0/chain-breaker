@@ -138,7 +138,7 @@ When multiple valid chains exist, the canonical chain is the one with the
 highest accumulated chain work.
 
 ```text
-chain_work(chain) = SUM over blocks in chain:  MAX_TARGET / (block.target + 1)
+chain_work(chain) = SUM over blocks in chain:  floor(MAX_TARGET / block.target)
 ```
 
 If two chains have equal chain work, the tie is broken by the lesser

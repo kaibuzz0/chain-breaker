@@ -82,7 +82,7 @@ A block header is a 7-tuple:
 | merkle_root | 32 bytes | Merkle root of this block's transactions |
 | registry_root | 32 bytes | SHA-256 of canonical active registry state |
 | timestamp | 8 bytes | uint64 little-endian Unix seconds |
-| target | 32 bytes | uint256 little-endian proof-of-work target |
+| target | 32 bytes | 256-bit raw proof-of-work target (displayed as big-endian hex) |
 | nonce | 8 bytes | uint64 little-endian |
 
 The canonical serialized header is the concatenation of these fields in the
@@ -104,7 +104,9 @@ int(header_hash, 16) <= target
 
 The comparison treats the 32-byte hash and the 32-byte target as unsigned
 256-bit integers. The hash is interpreted in big-endian byte order (the natural
-hex digit order). The target is the value of the 32 little-endian bytes.
+hex digit order). The target field is a raw 32-byte value. For display it is rendered as a
+64-character big-endian hex string; consensus compares the hash integer against
+the target integer parsed from those same bytes.
 
 ### 5.3 Target bounds
 
@@ -309,7 +311,7 @@ Common fields for all registry actions:
 Additional fields:
 
 - `display_metadata_hash`: 64-char hex or null
-- `governance_signatures`: list of governance signatures (Section 9.4)
+- `governance_signatures`: list of governance signatures (Section 9.4); ordering is canonicalized per Section 9.5
 
 Rules:
 
@@ -329,7 +331,7 @@ Additional fields:
 
 - `new_public_key_hex`: 64-char hex Ed25519 public key
 - `display_metadata_hash`: 64-char hex or null
-- `governance_signatures`: list of governance signatures
+- `governance_signatures`: list of governance signatures (ordering canonicalized per Section 9.5)
 
 Rules:
 
@@ -349,7 +351,7 @@ Additional fields:
 
 - `revocation_height`: integer, `>= activation_height` of the active key
 - `reason_code`: string, 1 to 64 UTF-8 bytes
-- `governance_signatures`: list of governance signatures
+- `governance_signatures`: list of governance signatures (ordering canonicalized per Section 9.5)
 
 Rules:
 
@@ -394,7 +396,15 @@ Validation rules:
 - Signatures are checked against the transaction body hash, not the full
   transaction.
 
-### 9.5 Witnesses
+### 9.5 Canonical signature ordering
+
+Governance transaction IDs are computed after sorting the list of
+`governance_signatures` by `key_index` ascending. Reordered signatures therefore
+cannot produce a different transaction ID, registration transaction ID, or
+registry root. Implementations must apply this canonicalization before hashing
+the transaction body.
+
+### 9.6 Witnesses
 
 A curator witness is:
 
@@ -461,8 +471,10 @@ transactions in block order from genesis. The reducer:
 ### 10.3 Canonical active-state serialization
 
 The active registry state for a block is the sorted list of all entries that are
-active at that block's height. Sorting is by `curator_id` ascending in UTF-8
-byte order.
+active at that block's height. Records are sorted by `curator_id` ascending in
+UTF-8 byte order. Governance keys are sorted lexicographically by their raw
+32-byte values before serialization. Both orderings must be reproduced exactly
+by every implementation.
 
 The canonical serialization of one entry is the concatenation of:
 

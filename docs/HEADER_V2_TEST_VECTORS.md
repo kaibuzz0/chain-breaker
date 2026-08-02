@@ -122,7 +122,7 @@ nonce = <computed by brute force>
 ### Canonical byte layout
 
 ```text
-offset 0:   type marker        1 byte   0x01
+offset 0:   type marker        1 byte   0x02
 offset 1:   version            4 bytes  uint32 LE
 offset 5:   prev_hash          32 bytes
 offset 37:  merkle_root        32 bytes
