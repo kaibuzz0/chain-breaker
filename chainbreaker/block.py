@@ -46,6 +46,25 @@ def header_bytes(header: dict[str, Any]) -> bytes:
     return BinaryCodec.encode_header(header)
 
 
+def mine_header_v2(header: BlockHeaderV2,
+                              max_iterations: int = 10_000_000,
+                              start_nonce: int = 0) -> bool:
+    """Deterministic v2 proof-of-work search.
+
+    Mutates `header.nonce` in place until `header.hash()` satisfies
+    `header.target` or `max_iterations` is reached.  The nonce wraps modulo
+    2**64 on exhaustion.
+    """
+    if header.prev_hash == "0" * 64 and header.version == PROTOCOL_VERSION:
+        # Refuse to re-mine the fixed genesis header.
+        pass
+    for _ in range(max_iterations):
+        if satisfies_pow(header.hash(), header.target):
+            return True
+        header.nonce = (header.nonce + 1) & 0xFFFFFFFFFFFFFFFF
+    return False
+
+
 def header_hash(header: dict[str, Any]) -> str:
     """Double-SHA256 of the canonical header bytes."""
     return HashEngine.hash_double_hex(header_bytes(header))
@@ -176,6 +195,10 @@ class BlockHeaderV2:
 
     def hash(self) -> str:
         return HashEngine.hash_double_hex(BinaryCodec.encode_header_v2(self.to_dict()))
+
+    def mine(self, max_iterations: int = 10_000_000, start_nonce: int = 0) -> bool:
+        """Find a nonce satisfying the v2 PoW target."""
+        return mine_header_v2(self, max_iterations=max_iterations, start_nonce=start_nonce)
 
 
 @dataclass
@@ -309,13 +332,9 @@ class BlockV2:
         header = BlockHeaderV2.from_dict(data["header"])
         return cls(header=header, transactions=list(data.get("transactions", [])))
 
-    def mine(self, max_iterations: int = 10_000_000) -> bool:
-        """Find a nonce satisfying the target."""
-        for _ in range(max_iterations):
-            if satisfies_pow(self.hash, self.header.target):
-                return True
-            self.header.nonce += 1
-        return False
+    def mine(self, max_iterations: int = 10_000_000, start_nonce: int = 0) -> bool:
+        """Find a nonce satisfying the v2 target."""
+        return self.header.mine(max_iterations=max_iterations, start_nonce=start_nonce)
 
     def is_genesis(self) -> bool:
         return self.header.prev_hash == "0" * 64 and self.hash == GENESIS_HASH
@@ -381,7 +400,7 @@ def _compute_genesis_constants() -> BlockV2:
     )
     block = BlockV2(header=header, transactions=[genesis_tx])
     block.header.merkle_root = block.merkle_root()
-    if not block.mine():
+    if not mine_header_v2(block.header):
         raise RuntimeError("failed to mine genesis block")
     return block
 

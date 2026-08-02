@@ -19,6 +19,7 @@ from .crypto import (
     sign,
     verify,
 )
+from .registry_state import RegistryState
 
 
 @dataclass
@@ -172,6 +173,101 @@ def verify_attestation(registry: Registry,
         return False
 
 
+
+def attestation_message_v2(body_hash: str, curator_id: str, block_height: int) -> bytes:
+    """Canonical message for a historical attestation.
+
+    The block_height is part of the signed domain so a signature cannot be
+    moved to a different height without detection.
+    """
+    msg = {
+        "network_id": NETWORK_ID,
+        "version": 2,
+        "type": "attestation",
+        "body_hash": body_hash,
+        "curator_id": curator_id,
+        "block_height": block_height,
+    }
+    return HashEngine.hash_object(msg)
+
+
+def sign_attestation_v2(sk: Ed25519PrivateKey,
+                        body_hash: str,
+                        curator_id: str,
+                        block_height: int) -> dict[str, Any]:
+    """Create a v2 historical attestation."""
+    msg = attestation_message_v2(body_hash, curator_id, block_height)
+    return {
+        "curator_id": curator_id,
+        "block_height": block_height,
+        "signature": sign(sk, msg),
+    }
+
+
+def verify_attestation_v2(state: RegistryState,
+                          witness: dict[str, Any],
+                          body_hash: str,
+                          block_height: int) -> bool:
+    """Verify a v2 attestation against the historical registry state.
+
+    The signature is valid only if the claimed key was active for the
+    specified curator at block_height.  This intentionally does NOT use the
+    current ledger state.
+    """
+    try:
+        curator_id = witness["curator_id"]
+        signature_hex = witness["signature"]
+        witness_height = witness["block_height"]
+        if not isinstance(curator_id, str) or not isinstance(signature_hex, str):
+            return False
+        if not isinstance(witness_height, int) or isinstance(witness_height, bool):
+            return False
+        if witness_height != block_height:
+            return False
+        public_key_hex = witness.get("public_key_hex")
+        if not isinstance(public_key_hex, str) or len(public_key_hex) != 64:
+            return False
+        if not state.key_was_valid_at(curator_id, public_key_hex, block_height):
+            return False
+        pk = decode_public_key(public_key_hex)
+        msg = attestation_message_v2(body_hash, curator_id, block_height)
+        return verify(pk, msg, signature_hex)
+    except (ValueError, KeyError, TypeError):
+        return False
+
+
+def verify_transaction_witnesses_v2(state: RegistryState,
+                                    tx: dict[str, Any],
+                                    block_height: int,
+                                    min_attestations: int = 1) -> bool:
+    """Verify all v2-style witnesses for an archive transaction against historical state.
+
+    Governance transactions carry their own signatures and are validated by the
+    registry reducer; this function is for archive/scripture transactions that
+    require curator attestations.  V2 witnesses use block_height instead of
+    timestamp and are not validated by the legacy schema checker.
+    """
+    if not isinstance(tx, dict):
+        return False
+    if not isinstance(tx.get("body"), dict):
+        return False
+    if not isinstance(tx.get("witnesses"), list):
+        return False
+
+    body_hash = HashEngine.hash_object_hex(tx["body"])
+    seen_curators: set[str] = set()
+    valid = 0
+    for witness in tx.get("witnesses", []):
+        curator_id = witness.get("curator_id")
+        if not isinstance(curator_id, str) or curator_id in seen_curators:
+            return False
+        seen_curators.add(curator_id)
+        if not verify_attestation_v2(state, witness, body_hash, block_height):
+            return False
+        valid += 1
+    return valid >= min_attestations
+
+
 def is_fresh(witness: dict[str, Any], now: int | None = None,
              max_age_seconds: int = 86400) -> bool:
     """Freshness check for initial submission only."""
@@ -251,6 +347,3 @@ class CuratorSigner:
         """Backwards-compatible alias that signs a manifest body."""
         body_hash = HashEngine.hash_object_hex(body)
         return self.sign_attestation(network_id=NETWORK_ID, version=1, body_hash=body_hash, timestamp=timestamp)
-
-        body_hash = HashEngine.hash_object_hex(body)
-        return sign_attestation(self.sk, body_hash, self.curator_id, timestamp)

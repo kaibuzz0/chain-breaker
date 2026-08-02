@@ -221,8 +221,20 @@ class BinaryCodec:
             raise CodecError(f"invalid header: {exc}") from exc
 
     @classmethod
-    def decode_header_v2(cls, data: bytes, offset: int = 0) -> tuple[dict[str, Any], int]:
-        """Decode v2 BlockHeader from exactly 149 bytes."""
+    def decode_header_v2(cls, data: bytes, offset: int = 0,
+                         *, strict: bool = False) -> tuple[dict[str, Any], int]:
+        """Decode v2 BlockHeader.
+
+        When ``strict=True`` the input must be exactly 149 bytes and the
+        returned offset must equal ``len(data)``.  This mode is required for
+        canonical header validation.  The default ``strict=False`` tolerates
+        trailing bytes for stream parsing.
+        """
+        if strict:
+            if offset != 0:
+                raise CodecError("strict mode requires offset=0")
+            if len(data) != 149:
+                raise CodecError(f"v2 header must be exactly 149 bytes, got {len(data)}")
         cls._need(data, offset, 1)
         if data[offset] != cls.TYPE_HEADER:
             raise CodecError(f"expected header type 0x{cls.TYPE_HEADER:02x}")
@@ -256,6 +268,8 @@ class BinaryCodec:
         nonce = struct.unpack_from(f"{cls.ENDIAN}Q", data, offset)[0]
         offset += 8
 
+        if strict and offset != len(data):
+            raise CodecError(f"strict mode consumed {offset} bytes but data length is {len(data)}")
         return {
             "version": version,
             "prev_hash": prev_hash,
