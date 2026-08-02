@@ -343,10 +343,14 @@ def _apply_register(
     )
 
 
-def _require_active_record(state: RegistryState, curator_id: str, public_key_hex: str) -> CuratorRecord:
-    record = state.by_id(curator_id)
-    if record is None:
+def _require_active_record(state: RegistryState, curator_id: str, public_key_hex: str, height: int) -> CuratorRecord:
+    matches = [r for r in state.records if r.curator_id == curator_id]
+    if not matches:
         raise RegistryError(f"unknown curator {curator_id!r}")
+    # Governance operations require the curator record to exist and the supplied
+    # public key to match the current key.  Activation/revocation heights govern
+    # attestation validity, not the ability to rotate or revoke.
+    record = max(matches, key=lambda r: r.activation_height)
     if record.public_key_hex != public_key_hex:
         raise RegistryError("public_key_hex does not match active record")
     return record
@@ -382,7 +386,7 @@ def _apply_rotate(
     if tx.previous_registry_root != registry_root(state):
         raise RegistryError("previous_registry_root does not match current state")
 
-    old_record = _require_active_record(state, tx.curator_id, tx.public_key_hex)
+    old_record = _require_active_record(state, tx.curator_id, tx.public_key_hex, block_height)
     _verify_curator_signature(old_record, body_without_witness, tx.curator_signature_hex)
 
     if tx.new_public_key_hex == old_record.public_key_hex:
@@ -406,7 +410,13 @@ def _apply_rotate(
             key=lambda r: r.curator_id.encode("utf-8"),
         )
     )
-    return RegistryState(records=new_records)
+    return RegistryState(
+        records=new_records,
+        governance_version=state.governance_version,
+        network_id=state.network_id,
+        governance_keys=state.governance_keys,
+        threshold=state.threshold,
+    )
 
 
 def _apply_revoke(
@@ -425,7 +435,7 @@ def _apply_revoke(
     if tx.previous_registry_root != registry_root(state):
         raise RegistryError("previous_registry_root does not match current state")
 
-    old_record = _require_active_record(state, tx.curator_id, tx.public_key_hex)
+    old_record = _require_active_record(state, tx.curator_id, tx.public_key_hex, block_height)
     _verify_curator_signature(old_record, body_without_witness, tx.curator_signature_hex)
 
     if old_record.revocation_height is not None:
