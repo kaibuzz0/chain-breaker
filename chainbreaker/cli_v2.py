@@ -20,7 +20,6 @@ from .block import (
     GENESIS_HASH,
     GENESIS_NONCE,
     GENESIS_REGISTRY_ROOT,
-    GENESIS_TARGET,
     GENESIS_TARGET_HEX,
     GENESIS_THRESHOLD,
     NETWORK_ID,
@@ -29,7 +28,13 @@ from .block import (
     create_genesis_block,
 )
 from .chain import Ledger, LedgerError
-from .crypto import decode_private_key, encode_public_key, generate_keypair, make_curator_signature
+from .crypto import (
+    decode_private_key,
+    encode_public_key,
+    generate_keypair,
+    make_curator_signature,
+    target_to_hex,
+)
 from .governance import (
     make_governance_signature,
 )
@@ -98,12 +103,19 @@ def _atomic_write(path: Path, data: str | bytes, mode: int = 0o600) -> None:
 
 
 def _load_ledger(path: Path) -> Ledger:
-    """Load a ledger from JSON file."""
-    data = json.loads(_safe_read(path, max_bytes=MAX_FILE_SIZE).decode("utf-8"))
-    if data.get("network_id") != NETWORK_ID:
+    """Load a ledger from JSON file with strict validation."""
+    raw = _load_json(path)
+    if raw.get("network_id") != NETWORK_ID:
         raise CLIError(f"invalid network ID: expected {NETWORK_ID}")
+    if not isinstance(raw.get("chain"), list) or not raw["chain"]:
+        raise CLIError("ledger must contain a non-empty chain")
+    genesis_header = raw["chain"][0].get("header", {})
+    if genesis_header.get("version") != PROTOCOL_VERSION:
+        raise CLIError(f"invalid genesis protocol version: expected {PROTOCOL_VERSION}")
+    if genesis_header.get("hash") != GENESIS_HASH and genesis_header.get("prev_hash") != "0" * 64:
+        raise CLIError("ledger genesis does not match canonical v2 genesis")
     try:
-        return Ledger.from_dict(data)
+        return Ledger.from_dict(raw)
     except (LedgerError, ValueError, KeyError, TypeError) as exc:
         raise CLIError(f"invalid ledger: {exc}") from exc
 
@@ -114,10 +126,23 @@ def _save_ledger(path: Path, ledger: Ledger) -> None:
 
 
 def _load_json(path: Path) -> dict[str, Any]:
-    """Load and validate a JSON file."""
-    raw = json.loads(_safe_read(path).decode("utf-8"))
+    """Load and validate a JSON file, rejecting trailing bytes."""
+    raw_bytes = _safe_read(path)
+    try:
+        raw_text = raw_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise CLIError(f"file is not valid UTF-8: {path}") from exc
+    try:
+        decoder = json.JSONDecoder()
+        raw_text_stripped = raw_text.strip()
+        raw, idx = decoder.raw_decode(raw_text_stripped)
+    except json.JSONDecodeError as exc:
+        raise CLIError(f"invalid JSON in {path}: {exc}") from exc
     if not isinstance(raw, dict):
         raise CLIError(f"expected JSON object in {path}")
+    # Reject any trailing non-whitespace after the parsed JSON value.
+    if idx < len(raw_text_stripped) and raw_text_stripped[idx:].strip():
+        raise CLIError(f"trailing bytes after JSON value in {path}")
     return raw
 
 
@@ -255,6 +280,8 @@ def v2_block_mine(ledger: str, transactions: str | None, timestamp: int | None,
         raise CLIError(f"refusing to overwrite existing file: {out_path} (use --force)")
 
     led = _load_ledger(ledger_path)
+    initial_height = led.height()
+    initial_tip = led.last_block.hash
 
     txs: list[dict[str, Any]] = []
     if transactions is not None:
@@ -262,11 +289,18 @@ def v2_block_mine(ledger: str, transactions: str | None, timestamp: int | None,
         if not isinstance(tx_data.get("transactions"), list):
             raise CLIError("transactions file must contain a 'transactions' list")
         txs = list(tx_data["transactions"])
+        for tx in txs:
+            if not isinstance(tx, dict):
+                raise CLIError("all transactions must be JSON objects")
 
     try:
         block = led.mine_block_v2(txs, max_iterations=max_iters, timestamp=timestamp)
     except LedgerError as exc:
         raise CLIError(f"mining failed: {exc}") from exc
+
+    # Ensure the ledger was never mutated by mining.
+    if led.height() != initial_height or led.last_block.hash != initial_tip:
+        raise CLIError("ledger was unexpectedly mutated during mining")
 
     _atomic_write(out_path, json.dumps(block.to_dict(), indent=2), mode=0o644)
     click.echo(json.dumps({
@@ -274,7 +308,7 @@ def v2_block_mine(ledger: str, transactions: str | None, timestamp: int | None,
         "height": led.height() + 1,
         "hash": block.hash,
         "registry_root": block.header.registry_root,
-        "target": GENESIS_TARGET_HEX if block.header.target == GENESIS_TARGET else hex(block.header.target)[2:].zfill(64),
+        "target": target_to_hex(block.header.target),
         "nonce": block.header.nonce,
         "transaction_count": len(block.transactions),
     }, indent=2))
@@ -302,7 +336,20 @@ def v2_block_add(ledger: str, block: str, output: str | None, force: bool) -> No
     except (KeyError, ValueError, TypeError) as exc:
         raise CLIError(f"invalid block: {exc}") from exc
 
-    # Validate everything before mutating the ledger.
+    # Explicit structural checks for clear error messages.
+    expected_height = led.height() + 1
+    if new_block.header.version != PROTOCOL_VERSION:
+        raise CLIError(f"invalid block protocol version: expected {PROTOCOL_VERSION}")
+    if new_block.header.prev_hash != led.last_block.hash:
+        raise CLIError("block previous hash does not match ledger tip")
+    if new_block.header.target != led.expected_target_at(expected_height):
+        raise CLIError("block target does not match expected difficulty")
+    previous_state = led._state_at(expected_height - 1)
+    expected_registry_root = registry_root(previous_state)
+    if new_block.header.registry_root != expected_registry_root:
+        raise CLIError("block registry root does not match expected state")
+
+    # Full consensus validation before mutating the ledger.
     if not led.add_block_v2(new_block):
         raise CLIError("block rejected by consensus validation")
 
