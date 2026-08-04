@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -25,9 +26,8 @@ def runner():
 
 
 def _installed_python() -> str:
-    """Return the Python interpreter from the active virtual environment."""
-    repo = Path(__file__).resolve().parents[1]
-    return str(repo / ".venv" / "Scripts" / "python.exe")
+    """Return the Python interpreter running the tests."""
+    return sys.executable
 
 
 def _run_installed(args: list[str], cwd: Path | None = None, check: bool = False) -> subprocess.CompletedProcess[str]:
