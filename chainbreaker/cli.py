@@ -12,6 +12,7 @@ import click
 from .archive import Archive
 from .block import create_genesis_block
 from .chain import Ledger
+from .cli_v2 import v2
 from .witness import (
     CuratorSigner,
     Registry,
@@ -143,6 +144,9 @@ def archive_add(data_dir: str, file: str, title: str, media_type: str, language:
         license=license,
     )
     click.echo(f"Manifest hash: {mh}")
+
+
+cli.add_command(v2)
 
 
 def main() -> None:
