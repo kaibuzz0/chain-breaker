@@ -159,15 +159,16 @@ def test_validate_chain_cross_process_determinism():
     block = ledger.mine_block_v2([], timestamp=1704067201)
     assert ledger.add_block_v2(block)
 
-    code = r"""
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    code = f"""
 import sys
-sys.path.insert(0, r"D:/Hermes-USB-Portable-main/src/chain-breaker-checkout")
+sys.path.insert(0, {repo_root!r})
 from chainbreaker.chain import Ledger
 ledger = Ledger()
-print("VALID" if ledger.validate_chain() else "INVALID")
+print('VALID' if ledger.validate_chain() else 'INVALID')
 """
     env = os.environ.copy()
-    env["PYTHONPATH"] = r"D:/Hermes-USB-Portable-main/src/chain-breaker-checkout"
+    env["PYTHONPATH"] = repo_root
     proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
     assert proc.returncode == 0
     assert proc.stdout.strip() == "VALID"

@@ -111,6 +111,11 @@ registry root to differ for the same logical action.
 | `pip-audit -r requirements.txt` | no known vulnerabilities |
 | `bandit -r chainbreaker` | no issues |
 
+**Dependency note:** `pip-audit` initially reported 3 CVEs in `cryptography 48.0.1`
+(CVE-2026-69248, CVE-2026-69247, CVE-2026-69249). The dependency was bumped to
+`cryptography>=50.0.0,<51` in `pyproject.toml` and `requirements.txt`, and the
+audit was re-run clean.
+
 ---
 
 ## Remaining deferred risks
