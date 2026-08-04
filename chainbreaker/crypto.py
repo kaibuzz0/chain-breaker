@@ -226,3 +226,22 @@ def verify(pk: Ed25519PublicKey, message: bytes, signature_hex: str) -> bool:
         return True
     except (InvalidSignature, ValueError, TypeError):
         return False
+
+
+def make_curator_signature(sk: Ed25519PrivateKey, body_without_witness: dict[str, Any]) -> str:
+    """Return a curator signature over a governance transaction body.
+
+    The signed message matches the one checked by the registry reducer's
+    `_verify_curator_signature`, ensuring CLI-generated rotate/revoke
+    transactions are accepted by the consensus layer.
+    """
+    from .governance import NETWORK_ID as _GOV_NETWORK_ID
+    from .governance import PROTOCOL_VERSION as _GOV_PROTOCOL_VERSION
+
+    message = HashEngine.hash_object({
+        "network_id": _GOV_NETWORK_ID,
+        "version": _GOV_PROTOCOL_VERSION,
+        "type": "registry",
+        "body_hash": HashEngine.hash_object_hex(body_without_witness),
+    })
+    return sign(sk, message)
