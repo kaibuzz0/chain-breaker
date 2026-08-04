@@ -13,6 +13,7 @@ from .block import (
     MAX_TARGET,
     MIN_TARGET,
     NETWORK_ID,
+    PROTOCOL_VERSION,
     Block,
     BlockHeader,
     BlockHeaderV2,
@@ -38,6 +39,19 @@ from .registry_state import (
 TARGET_BLOCK_TIME = 600
 DIFFICULTY_RETARGET_INTERVAL = 10
 MAX_RETARGET_FACTOR = 4
+
+
+
+
+def _canonical_txid(body_dict: dict[str, Any]) -> str:
+    """Return a deterministic transaction ID with canonical signature ordering."""
+    canonical_body = dict(body_dict)
+    if "governance_signatures" in canonical_body:
+        canonical_body["governance_signatures"] = sorted(
+            canonical_body["governance_signatures"],
+            key=lambda s: int(s.get("key_index", 0)),
+        )
+    return HashEngine.hash_object_hex(canonical_body)
 
 
 class LedgerError(ValueError):
@@ -105,7 +119,7 @@ class Ledger:
         for tx in transactions:
             parsed = self._parse_governance_transaction(tx)
             if parsed is not None:
-                txid = HashEngine.hash_object_hex(parsed.to_dict())
+                txid = _canonical_txid(parsed.to_dict())
                 new_state = apply_registry_transaction(new_state, parsed, height, txid, self._governance_context)
         return new_state
 
@@ -308,6 +322,8 @@ class Ledger:
             return False
         if not isinstance(block.header, BlockHeaderV2):
             return False
+        if block.header.version != PROTOCOL_VERSION:
+            return False
 
         # Registry-root commitment to previous state (replayed, not cached)
         previous_state = self._state_at(expected_height - 1)
@@ -361,10 +377,6 @@ class Ledger:
             # Median-past rule
             median = self.median_past_time(i)
             if current.header.timestamp <= median:
-                return False
-
-            # Not too far in the future
-            if current.header.timestamp > int(time.time()) + 7200:
                 return False
 
             # PoW and Merkle

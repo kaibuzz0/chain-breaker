@@ -345,6 +345,8 @@ class BlockV2:
                expected_target: int | None = None,
                transaction_validator: Callable[[dict[str, Any]], bool] | None = None) -> bool:
         """Verify v2 block integrity."""
+        if self.header.version != PROTOCOL_VERSION:
+            return False
         if allow_genesis and self.is_genesis():
             return True
 
