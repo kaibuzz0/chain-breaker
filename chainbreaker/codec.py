@@ -351,8 +351,15 @@ def validate_scripture_body(body: dict[str, Any]) -> None:
         "language", "source", "source_uri", "acquisition_date", "license",
         "parent_hash", "metadata_hash", "notes_hash",
     }
-    if set(body.keys()) != required:
-        raise SchemaError("scripture body has incorrect keys")
+    # Protocol v2 manifests may also carry network_id and schema_version.
+    allowed = required | {"network_id", "schema_version"}
+    if set(body.keys()) - allowed:
+        raise SchemaError("scripture body has disallowed keys")
+    if not required.issubset(body.keys()):
+        raise SchemaError("scripture body is missing required keys")
+
+    if body["schema"] != "chainbreaker-manifest-v1":
+        raise SchemaError("unsupported manifest schema")
 
     if body["schema"] != "chainbreaker-manifest-v1":
         raise SchemaError("unsupported manifest schema")

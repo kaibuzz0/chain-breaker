@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 from click.testing import CliRunner
 
+from chainbreaker.archive import Archive
 from chainbreaker.block import GENESIS_HASH, GENESIS_REGISTRY_ROOT, GENESIS_TARGET_HEX, NETWORK_ID
 from chainbreaker.cli import cli
 
@@ -1124,3 +1125,957 @@ def test_v2_installed_governance_end_to_end_smoke(tmp_path: Path) -> None:
     assert verify["valid"] is True
     assert verify["height"] == 1
     assert verify["curator_count"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Milestone D: archive and attestation CLI commands
+# ---------------------------------------------------------------------------
+
+
+def _build_ledger_with_alpha(tmp_path: Path, alpha_pk: str, alpha_sk_hex: str, activation_height: int = 2) -> Path:
+    """Create a ledger with alpha registered and return the ledger file path."""
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+
+    gov_sk, gov_pk = generate_keypair()
+    gov_key_hex = encode_public_key(gov_pk)
+    led = Ledger(governance_keys=[gov_key_hex], governance_threshold=1)
+    ledger_path = tmp_path / "ledger.json"
+    ledger_path.write_text(json.dumps(led.to_dict()), encoding="utf-8")
+
+    reg_body = {
+        "action": "curator_register",
+        "curator_id": "alpha",
+        "public_key_hex": alpha_pk,
+        "activation_height": activation_height,
+        "previous_registry_root": registry_root(led.registry_state_at(0)),
+        "network_id": "chainbreaker-scripture-v2",
+        "schema_version": 1,
+    }
+    sig = make_governance_signature(gov_sk, reg_body, 0)
+    reg_body["governance_signatures"] = [sig.to_dict()]
+    (tmp_path / "reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+
+    return ledger_path, gov_sk
+
+
+def _run_installed_archive(args: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
+    python = sys.executable
+    result = subprocess.run(
+        [python, "-m", "chainbreaker"] + args,
+        cwd=str(cwd),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if check and result.returncode != 0:
+        lines = ["installed command failed:", str(args), result.stdout, result.stderr]
+        raise AssertionError(chr(10).join(lines))
+    return result
+
+
+def test_v2_archive_add_and_verify(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        Path("doc.txt").write_text("hello scripture", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--media-type", "text/plain",
+            "--language", "en",
+            "--source", "test",
+            "--source-identifier", "urn:test:1",
+            "--license", "CC0",
+        ])
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["manifest_hash"]
+        assert data["network_id"] == "chainbreaker-scripture-v2"
+        assert data["schema_version"] == 1
+        assert data["byte_length"] == 15
+
+        result = runner.invoke(cli, [
+            "v2", "archive", "verify",
+            "--data-dir", "archive",
+            "--manifest-hash", data["manifest_hash"],
+        ])
+        assert result.exit_code == 0, result.output
+        verify = json.loads(result.output)
+        assert verify["manifest_valid"] is True
+        assert verify["byte_length"] == 15
+
+
+def test_v2_archive_detects_modified_content(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        Path("doc.txt").write_text("hello scripture", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+        ])
+        manifest_hash = json.loads(result.output)["manifest_hash"]
+
+        # Tamper with stored compressed content
+        archive = Archive("archive")
+        manifest = archive.get_manifest(manifest_hash)
+        content_path = archive._object_path(manifest["content_hash"])
+        import zlib
+        content_path.write_bytes(zlib.compress(b"tampered"))
+
+        result = runner.invoke(cli, [
+            "v2", "archive", "verify",
+            "--data-dir", "archive",
+            "--manifest-hash", manifest_hash,
+        ])
+        assert result.exit_code != 0
+        assert "content hash mismatch" in result.output.lower()
+
+
+def test_v2_archive_detects_modified_manifest(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        Path("doc.txt").write_text("hello scripture", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+        ])
+        manifest_hash = json.loads(result.output)["manifest_hash"]
+
+        # Tamper with stored manifest title
+        mpath = Path("archive") / "manifests" / manifest_hash
+        data = json.loads(mpath.read_text(encoding="utf-8"))
+        data["title"] = "Tampered"
+        mpath.write_text(json.dumps(data), encoding="utf-8")
+
+        result = runner.invoke(cli, [
+            "v2", "archive", "verify",
+            "--data-dir", "archive",
+            "--manifest-hash", manifest_hash,
+        ])
+        assert result.exit_code != 0
+        assert "manifest hash mismatch" in result.output.lower()
+
+
+def test_v2_archive_rejects_wrong_network_or_schema(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        Path("doc.txt").write_text("hello scripture", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+        ])
+        manifest_hash = json.loads(result.output)["manifest_hash"]
+
+        mpath = Path("archive") / "manifests" / manifest_hash
+        data = json.loads(mpath.read_text(encoding="utf-8"))
+        data["network_id"] = "wrong-network"
+        mpath.write_text(json.dumps(data), encoding="utf-8")
+
+        result = runner.invoke(cli, [
+            "v2", "archive", "verify",
+            "--data-dir", "archive",
+            "--manifest-hash", manifest_hash,
+        ])
+        assert result.exit_code != 0
+        assert "network id" in result.output.lower()
+
+
+def test_v2_archive_refuses_overwrite_without_force(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        Path("doc.txt").write_text("hello scripture", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello Again",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code != 0
+        assert "refusing to overwrite" in result.output.lower()
+
+
+def test_v2_archive_allows_overwrite_with_force(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        Path("doc.txt").write_text("hello scripture", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello Again",
+            "--output-manifest", "manifest.json",
+            "--force",
+        ])
+        assert result.exit_code == 0
+        manifest = _load_json(Path("manifest.json"))
+        assert manifest["title"] == "Hello Again"
+
+
+def test_v2_archive_path_traversal_rejected(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        Path("doc.txt").write_text("hello scripture", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "../doc.txt",
+            "--title", "Hello",
+        ])
+        assert result.exit_code != 0
+        assert "path traversal" in result.output.lower()
+
+
+def test_v2_attest_create_and_verify(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    with runner.isolated_filesystem():
+        alpha_sk, alpha_pk = generate_keypair()
+        Path("alpha_sk.hex").write_text(alpha_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        # Archive a document
+        Path("doc.txt").write_text("hello scripture", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        # Build ledger with alpha active at height 2
+        ledger_path = Path("ledger.json")
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        ledger_path.write_text(json.dumps(led.to_dict()), encoding="utf-8")
+
+        from chainbreaker.governance import make_governance_signature
+        from chainbreaker.registry_state import registry_root
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 2,
+            "previous_registry_root": registry_root(led.registry_state_at(0)),
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "reg.json", "--output", "block_1.json"])
+        assert result.exit_code == 0, result.output
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_1.json"])
+        assert result.exit_code == 0, result.output
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--output", "block_2.json"])
+        assert result.exit_code == 0, result.output
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_2.json"])
+        assert result.exit_code == 0, result.output
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "2",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att.json",
+        ])
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["curator_id"] == "alpha"
+        assert data["block_height"] == 2
+        assert data["public_key_hex"]
+        assert "body_hash" in data
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "verify",
+            "--ledger", "ledger.json",
+            "--attestation", "att.json",
+            "--manifest", "manifest.json",
+            "--block-height", "2",
+        ])
+        assert result.exit_code == 0, result.output
+        verify = json.loads(result.output)
+        assert verify["valid"] is True
+        assert verify["curator_id"] == "alpha"
+
+
+def test_v2_attest_private_key_never_printed(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+    with runner.isolated_filesystem():
+        alpha_sk, alpha_pk = generate_keypair()
+        alpha_sk_hex = alpha_sk.private_bytes_raw().hex()
+        Path("alpha_sk.hex").write_text(alpha_sk_hex, encoding="utf-8")
+
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        ledger_path = Path("ledger.json")
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        ledger_path.write_text(json.dumps(led.to_dict()), encoding="utf-8")
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 1,
+            "previous_registry_root": registry_root(led.registry_state_at(0)),
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "1",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att.json",
+        ])
+        # Height 1 should be rejected since activation_height must be > candidate; this still exercises the key check path.
+        assert alpha_sk_hex not in result.output
+        assert alpha_sk_hex not in Path("att.json").read_text(encoding="utf-8") if Path("att.json").exists() else True
+
+
+def test_v2_attest_rejects_before_activation(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+    with runner.isolated_filesystem():
+        alpha_sk, alpha_pk = generate_keypair()
+        Path("alpha_sk.hex").write_text(alpha_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        Path("ledger.json").write_text(json.dumps(led.to_dict()), encoding="utf-8")
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 3,
+            "previous_registry_root": registry_root(led.registry_state_at(0)),
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "reg.json", "--output", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_1.json"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "1",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att.json",
+        ])
+        assert result.exit_code != 0
+        assert "not active" in result.output.lower()
+
+
+def test_v2_attest_rotation_boundary(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+    with runner.isolated_filesystem():
+        alpha_sk, alpha_pk = generate_keypair()
+        beta_sk, beta_pk = generate_keypair()
+        Path("alpha_sk.hex").write_text(alpha_sk.private_bytes_raw().hex(), encoding="utf-8")
+        Path("beta_sk.hex").write_text(beta_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        Path("ledger.json").write_text(json.dumps(led.to_dict()), encoding="utf-8")
+
+        prev_root = registry_root(led.registry_state_at(0))
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 2,
+            "previous_registry_root": prev_root,
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "reg.json", "--output", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_1.json"])
+        assert result.exit_code == 0
+
+        # Empty block 2
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--output", "block_2.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_2.json"])
+        assert result.exit_code == 0
+
+        Path("gov_sk.hex").write_text(gov_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        # Rotate at height 4 via the governance CLI.
+        result = runner.invoke(cli, [
+            "v2", "governance", "rotate",
+            "--ledger", "ledger.json",
+            "--curator-id", "alpha",
+            "--public-key", encode_public_key(alpha_pk),
+            "--new-public-key", encode_public_key(beta_pk),
+            "--activation-height", "4",
+            "--governance-key", "gov_sk.hex",
+            "--key-index", "0",
+            "--curator-private-key", "alpha_sk.hex",
+            "--output", "rotate.json",
+        ])
+        assert result.exit_code == 0, result.output
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "rotate.json", "--output", "block_3.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_3.json"])
+        assert result.exit_code == 0
+        # Empty block 4
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--output", "block_4.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_4.json"])
+        assert result.exit_code == 0
+
+        # Old key valid before rotation activation (height 2)
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "2",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att_old.json",
+        ])
+        assert result.exit_code == 0, result.output
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "verify",
+            "--ledger", "ledger.json",
+            "--attestation", "att_old.json",
+            "--manifest", "manifest.json",
+            "--block-height", "2",
+        ])
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["valid"] is True
+
+        # Old key invalid after rotation activation (height 4)
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "4",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att_after.json",
+        ])
+        assert result.exit_code != 0
+        assert "not active" in result.output.lower()
+
+
+def test_v2_attest_revocation_boundary(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+    with runner.isolated_filesystem():
+        alpha_sk, alpha_pk = generate_keypair()
+        Path("alpha_sk.hex").write_text(alpha_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        Path("ledger.json").write_text(json.dumps(led.to_dict()), encoding="utf-8")
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 2,
+            "previous_registry_root": registry_root(led.registry_state_at(0)),
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "reg.json", "--output", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_1.json"])
+        assert result.exit_code == 0
+
+        Path("gov_sk.hex").write_text(gov_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        # Revoke at height 3 via the governance CLI.
+        result = runner.invoke(cli, [
+            "v2", "governance", "revoke",
+            "--ledger", "ledger.json",
+            "--curator-id", "alpha",
+            "--public-key", encode_public_key(alpha_pk),
+            "--revocation-height", "3",
+            "--reason", "compromise",
+            "--governance-key", "gov_sk.hex",
+            "--key-index", "0",
+            "--curator-private-key", "alpha_sk.hex",
+            "--output", "revoke.json",
+        ])
+        assert result.exit_code == 0, result.output
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "revoke.json", "--output", "block_2.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_2.json"])
+        assert result.exit_code == 0
+        # Empty block 3
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--output", "block_3.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_3.json"])
+        assert result.exit_code == 0
+
+        # Valid before revocation (height 2)
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "2",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att_before.json",
+        ])
+        assert result.exit_code == 0, result.output
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "verify",
+            "--ledger", "ledger.json",
+            "--attestation", "att_before.json",
+            "--manifest", "manifest.json",
+            "--block-height", "2",
+        ])
+        assert result.exit_code == 0
+        assert json.loads(result.output)["valid"] is True
+
+        # Invalid after revocation (height 3)
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "3",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att_after.json",
+        ])
+        assert result.exit_code != 0
+
+
+def test_v2_attest_rejects_wrong_manifest(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+    with runner.isolated_filesystem():
+        alpha_sk, alpha_pk = generate_keypair()
+        Path("alpha_sk.hex").write_text(alpha_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        Path("ledger.json").write_text(json.dumps(led.to_dict()), encoding="utf-8")
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 2,
+            "previous_registry_root": registry_root(led.registry_state_at(0)),
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "reg.json", "--output", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--output", "block_2.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_2.json"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "2",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att.json",
+        ])
+        assert result.exit_code == 0
+
+        wrong_hash = "a" * 64
+        result = runner.invoke(cli, [
+            "v2", "attest", "verify",
+            "--ledger", "ledger.json",
+            "--attestation", "att.json",
+            "--manifest", wrong_hash,
+            "--block-height", "2",
+        ])
+        assert result.exit_code != 0
+        assert "verification failed" in result.output.lower()
+
+
+def test_v2_attest_rejects_wrong_block_height(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+    with runner.isolated_filesystem():
+        alpha_sk, alpha_pk = generate_keypair()
+        Path("alpha_sk.hex").write_text(alpha_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        Path("ledger.json").write_text(json.dumps(led.to_dict()), encoding="utf-8")
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 2,
+            "previous_registry_root": registry_root(led.registry_state_at(0)),
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "reg.json", "--output", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--output", "block_2.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_2.json"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "2",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att.json",
+        ])
+        assert result.exit_code == 0
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "verify",
+            "--ledger", "ledger.json",
+            "--attestation", "att.json",
+            "--manifest", "manifest.json",
+            "--block-height", "1",
+        ])
+        assert result.exit_code != 0
+
+
+def test_v2_attest_rejects_malformed_signature(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+    with runner.isolated_filesystem():
+        alpha_sk, alpha_pk = generate_keypair()
+        Path("alpha_sk.hex").write_text(alpha_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        Path("ledger.json").write_text(json.dumps(led.to_dict()), encoding="utf-8")
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 2,
+            "previous_registry_root": registry_root(led.registry_state_at(0)),
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "reg.json", "--output", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--output", "block_2.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_2.json"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "2",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att.json",
+        ])
+        assert result.exit_code == 0
+
+        att = _load_json(Path("att.json"))
+        att["signature"] = "aa"
+        Path("att_bad.json").write_text(json.dumps(att), encoding="utf-8")
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "verify",
+            "--ledger", "ledger.json",
+            "--attestation", "att_bad.json",
+            "--manifest", "manifest.json",
+            "--block-height", "2",
+        ])
+        assert result.exit_code != 0
+
+
+def test_v2_attest_atomic_write_failure_preserves_existing(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+    with runner.isolated_filesystem():
+        alpha_sk, alpha_pk = generate_keypair()
+        Path("alpha_sk.hex").write_text(alpha_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        Path("ledger.json").write_text(json.dumps(led.to_dict()), encoding="utf-8")
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 2,
+            "previous_registry_root": registry_root(led.registry_state_at(0)),
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "reg.json", "--output", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--output", "block_2.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_2.json"])
+        assert result.exit_code == 0
+
+        Path("att.json").write_text("existing", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "2",
+            "--private-key", "alpha_sk.hex",
+            "--output", "att.json",
+        ])
+        assert result.exit_code != 0
+        assert Path("att.json").read_text(encoding="utf-8") == "existing"
+
+
+def test_v2_archive_and_attest_installed_end_to_end(tmp_path: Path) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+
+    # Archive a document via installed entry point
+    doc = tmp_path / "doc.txt"
+    doc.write_text("installed entry point smoke", encoding="utf-8")
+    result = _run_installed([
+        "v2", "archive", "add",
+        "--data-dir", str(tmp_path / "archive"),
+        "--file", str(doc),
+        "--title", "Installed Smoke",
+        "--output-manifest", str(tmp_path / "manifest.json"),
+    ], cwd=tmp_path)
+    data = json.loads(result.stdout)
+    assert data["manifest_hash"]
+    assert data["network_id"]
+
+    result = _run_installed([
+        "v2", "archive", "verify",
+        "--data-dir", str(tmp_path / "archive"),
+        "--manifest-hash", data["manifest_hash"],
+    ], cwd=tmp_path)
+    verify = json.loads(result.stdout)
+    assert verify["manifest_valid"] is True
+
+    # Set up ledger and curator
+    alpha_sk, alpha_pk = generate_keypair()
+    alpha_sk_path = tmp_path / "alpha_sk.hex"
+    alpha_sk_path.write_text(alpha_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+    gov_sk, gov_pk = generate_keypair()
+    led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+    ledger_path = tmp_path / "ledger.json"
+    ledger_path.write_text(json.dumps(led.to_dict()), encoding="utf-8")
+
+    reg_body = {
+        "action": "curator_register",
+        "curator_id": "alpha",
+        "public_key_hex": encode_public_key(alpha_pk),
+        "activation_height": 2,
+        "previous_registry_root": registry_root(led.registry_state_at(0)),
+        "network_id": "chainbreaker-scripture-v2",
+        "schema_version": 1,
+    }
+    sig = make_governance_signature(gov_sk, reg_body, 0)
+    reg_body["governance_signatures"] = [sig.to_dict()]
+    reg_path = tmp_path / "reg.json"
+    reg_path.write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+
+    result = _run_installed(["v2", "block", "mine", "--ledger", str(ledger_path), "--transactions", str(reg_path), "--output", str(tmp_path / "block_1.json")], cwd=tmp_path)
+    assert result.returncode == 0
+    result = _run_installed(["v2", "block", "add", "--ledger", str(ledger_path), "--block", str(tmp_path / "block_1.json")], cwd=tmp_path)
+    assert result.returncode == 0
+    result = _run_installed(["v2", "block", "mine", "--ledger", str(ledger_path), "--output", str(tmp_path / "block_2.json")], cwd=tmp_path)
+    assert result.returncode == 0
+    result = _run_installed(["v2", "block", "add", "--ledger", str(ledger_path), "--block", str(tmp_path / "block_2.json")], cwd=tmp_path)
+    assert result.returncode == 0
+
+    att_path = tmp_path / "att.json"
+    result = _run_installed([
+        "v2", "attest", "create",
+        "--ledger", str(ledger_path),
+        "--manifest", str(tmp_path / "manifest.json"),
+        "--curator-id", "alpha",
+        "--block-height", "2",
+        "--private-key", str(alpha_sk_path),
+        "--output", str(att_path),
+    ], cwd=tmp_path)
+    assert result.returncode == 0
+    att_data = json.loads(result.stdout)
+    assert att_data["curator_id"] == "alpha"
+
+    result = _run_installed([
+        "v2", "attest", "verify",
+        "--ledger", str(ledger_path),
+        "--attestation", str(att_path),
+        "--manifest", str(tmp_path / "manifest.json"),
+        "--block-height", "2",
+    ], cwd=tmp_path)
+    assert result.returncode == 0
+    verify_att = json.loads(result.stdout)
+    assert verify_att["valid"] is True

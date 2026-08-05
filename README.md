@@ -40,11 +40,25 @@ chainbreaker genesis
 # Generate a curator keypair
 chainbreaker curator generate --curator-id alice
 
-# Add a document to the archive
-chainbreaker archive add --file README.md --title "README" --media-type text/plain
+# Add a document to the archive (Protocol v2)
+chainbreaker v2 archive add --data-dir ./archive --file README.md --title "README" --media-type text/plain
 
-# Mine a block anchoring a manifest (requires a local registry.json)
-chainbreaker mine --manifest-hash <hash>
+# Verify a stored manifest
+chainbreaker v2 archive verify --data-dir ./archive --manifest-hash <hash>
+
+# Generate a curator keypair (Protocol v2)
+chainbreaker v2 curator generate --output-sk alice.sk.hex --output-pk alice.pk.hex
+
+# Register a curator via governance
+chainbreaker v2 governance register --ledger ledger.json --curator-id alice --public-key <hex> --activation-height 2 --governance-key gov.sk.hex --key-index 0 --output reg.json
+
+# Mine and add a block
+chainbreaker v2 block mine --ledger ledger.json --transactions reg.json --output block.json
+chainbreaker v2 block add --ledger ledger.json --block block.json
+
+# Attest a manifest at a historical height
+chainbreaker v2 attest create --ledger ledger.json --manifest <hash-or-json> --curator-id alice --block-height 2 --private-key alice.sk.hex --output att.json
+chainbreaker v2 attest verify --ledger ledger.json --attestation att.json --manifest <hash-or-json> --block-height 2
 ```
 
 ## Verification
