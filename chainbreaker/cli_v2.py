@@ -469,9 +469,10 @@ def v2_curator_generate(curator_id: str | None, private_key: str, public_key: st
     on POSIX). It is never printed, logged, or returned as JSON. Only the
     curator identifier and the public key hex are emitted.
     """
-    sk_path = _resolve_path(private_key)
+    sk_path = Path(private_key)
     if sk_path.is_symlink() and not force:
         raise CLIError(f"refusing to write private key through symlink: {sk_path}")
+    sk_path = _resolve_path(private_key)
     if sk_path.exists() and not force:
         raise CLIError(f"refusing to overwrite private key: {sk_path} (use --force)")
 
@@ -488,9 +489,10 @@ def v2_curator_generate(curator_id: str | None, private_key: str, public_key: st
         output["curator_id"] = curator_id
 
     if public_key is not None:
-        pk_path = _resolve_path(public_key)
+        pk_path = Path(public_key)
         if pk_path.is_symlink() and not force:
             raise CLIError(f"refusing to write public key through symlink: {pk_path}")
+        pk_path = _resolve_path(public_key)
         if pk_path.exists() and not force:
             raise CLIError(f"refusing to overwrite public key: {pk_path} (use --force)")
         _atomic_write(pk_path, pk_hex + chr(10), mode=0o644)
@@ -1028,14 +1030,15 @@ def v2_archive_add(
     never loaded entirely into memory. Alpha usage is soft-capped at 1 GB.
     """
     base = _resolve_path(data_dir)
-    in_path = _resolve_path(input_file)
     # Reject relative paths that try to escape the current working directory.
     for raw_path in (data_dir, input_file):
         p_raw = Path(raw_path)
         if not p_raw.is_absolute() and any(part == ".." for part in p_raw.parts):
             raise CLIError("path traversal is not allowed")
-    if in_path.is_symlink():
-        raise CLIError(f"refusing to archive through symlink: {in_path}")
+    in_raw = Path(input_file)
+    if in_raw.is_symlink():
+        raise CLIError(f"refusing to archive through symlink: {in_raw}")
+    in_path = _resolve_path(input_file)
     if not in_path.exists():
         raise CLIError(f"file not found: {in_path}")
 
