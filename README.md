@@ -84,3 +84,19 @@ bandit -r chainbreaker
 ## License
 
 MIT
+
+
+## Security properties
+
+- **Private keys** are written atomically with 0o600 permissions on POSIX and
+  are never printed, logged, or serialized.
+- **Atomic writes** use same-directory temp files and `os.replace`; failures
+  leave the original file unchanged.
+- **Path traversal** (`..`) and symlink writes are rejected for inputs and
+  security-sensitive outputs.
+- **Archive size**: files larger than 1 GB are rejected (alpha hard ceiling,
+  no override).
+- **No network access**: all v2 commands are local-only and never make HTTP or
+  shell requests.
+- **Strict UTF-8**: all manifest and transaction JSON is read and written as
+  UTF-8 with deterministic key ordering.
