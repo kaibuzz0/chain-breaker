@@ -419,6 +419,8 @@ class Ledger:
             "network_id": NETWORK_ID,
             "chain": [b.to_dict() for b in self.chain],
             "chain_work": self.chain_work(),
+            "governance_keys": list(self.governance_keys),
+            "governance_threshold": self.governance_threshold,
         }
 
     @classmethod
@@ -427,7 +429,18 @@ class Ledger:
         if data.get("network_id") != NETWORK_ID:
             raise LedgerError("invalid network ID")
         chain = [Block.from_dict(b) if "registry_root" not in b["header"] else BlockV2.from_dict(b) for b in data["chain"]]
-        return cls(chain, transaction_validator=transaction_validator)
+        governance_keys = data.get("governance_keys")
+        governance_threshold = data.get("governance_threshold")
+        if governance_keys is not None and (not isinstance(governance_keys, list) or not all(isinstance(k, str) for k in governance_keys)):
+            raise LedgerError("governance_keys must be a list of hex strings")
+        if governance_threshold is not None and (not isinstance(governance_threshold, int) or isinstance(governance_threshold, bool)):
+            raise LedgerError("governance_threshold must be an integer")
+        return cls(
+            chain,
+            transaction_validator=transaction_validator,
+            governance_keys=governance_keys,
+            governance_threshold=governance_threshold,
+        )
 
 
 def block_encode(block: Block | BlockV2) -> bytes:
