@@ -29,6 +29,7 @@ from .block import (
 )
 from .chain import Ledger, LedgerError
 from .crypto import (
+    HashEngine,
     decode_private_key,
     decode_public_key,
     encode_public_key,
@@ -50,6 +51,46 @@ from .registry_state import (
 from .witness import sign_attestation_v2, verify_attestation_v2
 
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
+ALPHA_MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024  # 1 GB soft ceiling for alpha usage
+
+
+def _stream_hash(path: Path, max_bytes: int = ALPHA_MAX_FILE_SIZE) -> tuple[str, int]:
+    """Return (sha256_hex, byte_length) reading the file in chunks.
+
+    This avoids loading unbounded files entirely into memory.
+    """
+    import hashlib
+
+    path = _resolve_path(str(path))
+    if not path.exists():
+        raise CLIError(f"file not found: {path}")
+    if not path.is_file():
+        raise CLIError(f"not a file: {path}")
+    size = path.stat().st_size
+    if size > max_bytes:
+        raise CLIError(
+            f"file too large: {path} ({size} bytes > {max_bytes}). "
+            "Alpha supports files up to 1 GB; contact operators for larger archives."
+        )
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            chunk = f.read(1024 * 1024)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest(), size
+
+
+def _is_path_traversal(target: Path, base: Path) -> bool:
+    """Return True if target resolves outside base."""
+    try:
+        target.resolve().relative_to(base.resolve())
+        return False
+    except ValueError:
+        return True
+
+
 
 
 class CLIError(click.ClickException):
@@ -779,27 +820,53 @@ def v2_attest() -> None:
 
 
 @v2_attest.command(name="create")
-@click.option("--body-hash", required=True, help="Manifest hash to attest")
+@click.option("--ledger", "-l", required=True, type=click.Path(), help="Ledger JSON file")
+@click.option("--manifest", "-m", required=True, type=click.Path(), help="Manifest JSON file or manifest hash")
 @click.option("--curator-id", required=True, help="Curator identifier")
 @click.option("--block-height", required=True, type=int, help="Attestation block height")
 @click.option("--private-key", required=True, type=click.Path(), help="Curator private key file")
 @click.option("--output", "-o", required=True, type=click.Path(), help="Attestation JSON output path")
 @click.option("--force", is_flag=True, help="Overwrite output file")
 def v2_attest_create(
-    body_hash: str,
+    ledger: str,
+    manifest: str,
     curator_id: str,
     block_height: int,
     private_key: str,
     output: str,
     force: bool,
 ) -> None:
-    """Create a v2 historical archive attestation."""
+    """Create a v2 historical archive attestation.
+
+    The curator key must be active at the requested block height. The manifest
+    argument may be a manifest JSON file (its body hash is computed) or a bare
+    64-character manifest hash.
+    """
     out_path = _resolve_path(output)
     if out_path.exists() and not force:
         raise CLIError(f"refusing to overwrite existing file: {out_path} (use --force)")
 
+    led = _load_ledger(_resolve_path(ledger))
+    try:
+        state = led.registry_state_at(block_height)
+    except LedgerError as exc:
+        raise CLIError(f"invalid block height: {exc}") from exc
+
+    manifest_path = _resolve_path(manifest)
+    if manifest_path.exists() and manifest_path.is_file():
+        manifest_data = _load_json(manifest_path)
+        body = manifest_data.get("body", manifest_data)
+        body_hash = HashEngine.hash_object_hex(body)
+    elif len(manifest) == 64 and all(c in "0123456789abcdef" for c in manifest.lower()):
+        body_hash = manifest.lower()
+    else:
+        raise CLIError("manifest must be a manifest JSON file path or a 64-character hex hash")
+
     sk = _load_private_key(_resolve_path(private_key))
     pk_hex = encode_public_key(sk.public_key())
+    if not state.key_was_valid_at(curator_id, pk_hex, block_height):
+        raise CLIError(f"curator {curator_id!r} public key is not active at block height {block_height}")
+
     witness = sign_attestation_v2(sk, body_hash, curator_id, block_height)
     witness["public_key_hex"] = pk_hex
 
@@ -808,29 +875,53 @@ def v2_attest_create(
         "path": str(out_path),
         "curator_id": curator_id,
         "block_height": block_height,
+        "body_hash": body_hash,
         "public_key_hex": pk_hex,
     }, indent=2))
 
 
 @v2_attest.command(name="verify")
 @click.option("--ledger", "-l", required=True, type=click.Path(), help="Ledger JSON file")
-@click.option("--body-hash", required=True, help="Manifest hash that was attested")
 @click.option("--attestation", "-a", required=True, type=click.Path(), help="Attestation JSON file")
+@click.option("--manifest", "-m", required=True, help="Manifest JSON file path or manifest hash")
 @click.option("--block-height", required=True, type=int, help="Expected attestation block height")
 def v2_attest_verify(
     ledger: str,
-    body_hash: str,
     attestation: str,
+    manifest: str,
     block_height: int,
 ) -> None:
-    """Verify an attestation against registry state at the specified height."""
+    """Verify a v2 historical attestation against registry state at the specified height.
+
+    Historical validity is evaluated at block_height, independent of the current
+    wall clock.
+    """
     led = _load_ledger(_resolve_path(ledger))
     try:
         state = led.registry_state_at(block_height)
     except LedgerError as exc:
         raise CLIError(f"invalid block height: {exc}") from exc
 
-    witness = _load_json(_resolve_path(attestation))
+    witness_path = _resolve_path(attestation)
+    witness = _load_json(witness_path)
+
+    manifest_path = _resolve_path(manifest)
+    if manifest_path.exists() and manifest_path.is_file():
+        manifest_data = _load_json(manifest_path)
+        body = manifest_data.get("body", manifest_data)
+        body_hash = HashEngine.hash_object_hex(body)
+    elif len(manifest) == 64 and all(c in "0123456789abcdef" for c in manifest.lower()):
+        body_hash = manifest.lower()
+    else:
+        raise CLIError("manifest must be a manifest JSON file path or a 64-character hex hash")
+
+    # Reject duplicate/malformed attestations cleanly.
+    if not isinstance(witness, dict):
+        raise CLIError("attestation must be a JSON object")
+    for key in ("curator_id", "block_height", "signature", "public_key_hex"):
+        if key not in witness:
+            raise CLIError(f"attestation missing required field: {key}")
+
     valid = verify_attestation_v2(state, witness, body_hash, block_height)
     click.echo(json.dumps({
         "valid": valid,
@@ -859,8 +950,13 @@ def v2_archive() -> None:
 @click.option("--media-type", default="application/octet-stream", help="Media type")
 @click.option("--language", default=None, help="Language code")
 @click.option("--source", default=None, help="Source description")
-@click.option("--source-uri", default=None, help="Source URI")
+@click.option("--source-identifier", default=None, help="Source identifier or URI")
+@click.option("--source-uri", default=None, help="Source URI (legacy alias for --source-identifier)")
+@click.option("--acquisition-date", type=int, default=None, help="Acquisition date as Unix timestamp")
 @click.option("--license", default=None, help="Rights/license status")
+@click.option("--parent-hash", default=None, help="Previous-version content hash")
+@click.option("--metadata", type=click.Path(), default=None, help="Optional JSON metadata file")
+@click.option("--notes", type=click.Path(), default=None, help="Optional notes file")
 @click.option("--output-manifest", "-o", type=click.Path(), help="Optional manifest JSON output path")
 @click.option("--force", is_flag=True, help="Overwrite output files")
 def v2_archive_add(
@@ -870,25 +966,70 @@ def v2_archive_add(
     media_type: str,
     language: str | None,
     source: str | None,
+    source_identifier: str | None,
     source_uri: str | None,
+    acquisition_date: int | None,
     license: str | None,
+    parent_hash: str | None,
+    metadata: str | None,
+    notes: str | None,
     output_manifest: str | None,
     force: bool,
 ) -> None:
-    """Create and store a canonical archive manifest."""
+    """Create and store a canonical chainbreaker-manifest-v1 archive manifest.
+
+    The document bytes are hashed with streaming SHA-256 so unbounded files are
+    never loaded entirely into memory. Alpha usage is soft-capped at 1 GB.
+    """
     base = _resolve_path(data_dir)
     in_path = _resolve_path(input_file)
+    # Reject relative paths that try to escape the current working directory.
+    for raw_path in (data_dir, input_file):
+        p_raw = Path(raw_path)
+        if not p_raw.is_absolute() and any(part == ".." for part in p_raw.parts):
+            raise CLIError("path traversal is not allowed")
+
+    content_hash, byte_length = _stream_hash(in_path)
+
+    # Optional metadata and notes files are read as opaque byte blobs; only their
+    # hashes are recorded in the manifest.
+    metadata_hash: str | None = None
+    if metadata is not None:
+        metadata_path = _resolve_path(metadata)
+        if _is_path_traversal(metadata_path, base):
+            raise CLIError("path traversal is not allowed")
+        metadata_bytes = _safe_read(metadata_path)
+        metadata_hash = HashEngine.hash_single_hex(metadata_bytes)
+    notes_hash: str | None = None
+    if notes is not None:
+        notes_path = _resolve_path(notes)
+        if _is_path_traversal(notes_path, base):
+            raise CLIError("path traversal is not allowed")
+        notes_bytes = _safe_read(notes_path)
+        notes_hash = HashEngine.hash_single_hex(notes_bytes)
+
+    # Read source file exactly once into bytes for storage. For very large files
+    # this is bounded by the 1 GB alpha ceiling enforced by _stream_hash.
+    data = _safe_read(in_path, max_bytes=ALPHA_MAX_FILE_SIZE)
+
+    # Build optional metadata dict; Archive.canonical_json() hashes it.
+    metadata_dict: dict[str, Any] | None = None
+    if metadata_hash is not None:
+        metadata_dict = {"metadata_hash": metadata_hash}
 
     archive = Archive(str(base))
-    data = _safe_read(in_path)
     manifest_hash = archive.add_document(
         data,
         title=title,
         media_type=media_type,
         language=language,
         source=source,
-        source_uri=source_uri,
+        source_uri=source_uri or source_identifier,
+        acquisition_date=acquisition_date,
         license=license,
+        parent_hash=parent_hash,
+        notes_hash=notes_hash,
+        metadata=metadata_dict,
     )
     manifest = archive.get_manifest(manifest_hash)
 
@@ -904,6 +1045,8 @@ def v2_archive_add(
         "byte_length": manifest["byte_length"],
         "media_type": manifest["media_type"],
         "title": manifest["title"],
+        "network_id": manifest["network_id"],
+        "schema_version": manifest["schema_version"],
     }, indent=2))
 
 
@@ -918,15 +1061,33 @@ def v2_archive_verify(
     base = _resolve_path(data_dir)
     archive = Archive(str(base))
 
-    manifest_ok = archive.verify_manifest(manifest_hash)
-    if not manifest_ok:
-        raise CLIError("manifest verification failed")
-
     try:
         manifest = archive.get_manifest(manifest_hash)
+    except Exception as exc:
+        raise CLIError(f"manifest read failed: {exc}") from exc
+
+    if manifest.get("network_id") != NETWORK_ID:
+        raise CLIError("manifest network ID does not match this chain")
+    if manifest.get("schema_version") != 1:
+        raise CLIError("unsupported manifest schema version")
+
+    # Recompute manifest hash from stored bytes to detect metadata tampering.
+    mpath = archive.manifests_dir / manifest_hash
+    stored_bytes = mpath.read_bytes()
+    if HashEngine.hash_single_hex(stored_bytes) != manifest_hash:
+        raise CLIError("manifest hash mismatch; manifest metadata has been tampered with")
+
+    # Recompute content hash and length from stored bytes.
+    try:
         content = archive.get_document(manifest["content_hash"])
     except Exception as exc:
-        raise CLIError(f"content verification failed: {exc}") from exc
+        raise CLIError(f"content read failed: {exc}") from exc
+
+    content_hash = HashEngine.hash_single_hex(content)
+    if content_hash != manifest["content_hash"]:
+        raise CLIError("content hash mismatch; document bytes have been modified")
+    if len(content) != manifest["byte_length"]:
+        raise CLIError("content length mismatch")
 
     click.echo(json.dumps({
         "manifest_hash": manifest_hash,

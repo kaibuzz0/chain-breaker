@@ -8,6 +8,7 @@ import zlib
 from pathlib import Path
 from typing import Any
 
+from .block import NETWORK_ID
 from .codec import validate_scripture_body
 from .crypto import HashEngine
 
@@ -51,6 +52,8 @@ class Archive:
         metadata_hash = HashEngine.hash_single_hex(metadata_blob)
         manifest = {
             "schema": "chainbreaker-manifest-v1",
+            "network_id": NETWORK_ID,
+            "schema_version": 1,
             "content_hash": content_hash,
             "byte_length": len(data),
             "media_type": media_type,
