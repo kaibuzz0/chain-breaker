@@ -30,15 +30,23 @@ from .block import (
 from .chain import Ledger, LedgerError
 from .crypto import (
     decode_private_key,
+    decode_public_key,
     encode_public_key,
     generate_keypair,
     make_curator_signature,
     target_to_hex,
 )
 from .governance import (
+    GOVERNANCE_SCHEMA_VERSION,
+    GovernanceContext,
+    GovernanceError,
     make_governance_signature,
 )
-from .registry_state import registry_root
+from .registry_state import (
+    RegistryError,
+    RegistryState,
+    registry_root,
+)
 from .witness import sign_attestation_v2, verify_attestation_v2
 
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
@@ -286,9 +294,16 @@ def v2_block_mine(ledger: str, transactions: str | None, timestamp: int | None,
     txs: list[dict[str, Any]] = []
     if transactions is not None:
         tx_data = _load_json(_resolve_path(transactions))
-        if not isinstance(tx_data.get("transactions"), list):
-            raise CLIError("transactions file must contain a 'transactions' list")
-        txs = list(tx_data["transactions"])
+        if isinstance(tx_data, list):
+            txs = list(tx_data)
+        elif isinstance(tx_data, dict):
+            if "transactions" in tx_data and isinstance(tx_data["transactions"], list):
+                txs = list(tx_data["transactions"])
+            else:
+                # Single transaction envelope, e.g. the output of v2 governance commands.
+                txs = [tx_data]
+        else:
+            raise CLIError("transactions file must contain a JSON object or a list of transactions")
         for tx in txs:
             if not isinstance(tx, dict):
                 raise CLIError("all transactions must be JSON objects")
@@ -376,11 +391,17 @@ def v2_curator() -> None:
 
 
 @v2_curator.command(name="generate")
+@click.option("--curator-id", help="Curator identifier (user-assigned, echoed in output)")
 @click.option("--private-key", "-k", required=True, type=click.Path(), help="Output path for the private key")
 @click.option("--public-key", "-p", type=click.Path(), help="Optional output path for the public key")
 @click.option("--force", is_flag=True, help="Overwrite existing key files")
-def v2_curator_generate(private_key: str, public_key: str | None, force: bool) -> None:
-    """Generate an Ed25519 curator keypair."""
+def v2_curator_generate(curator_id: str | None, private_key: str, public_key: str | None, force: bool) -> None:
+    """Generate an Ed25519 curator keypair.
+
+    The private key is written atomically with restrictive permissions (0o600
+    on POSIX). It is never printed, logged, or returned as JSON. Only the
+    curator identifier and the public key hex are emitted.
+    """
     sk_path = _resolve_path(private_key)
     if sk_path.exists() and not force:
         raise CLIError(f"refusing to overwrite private key: {sk_path} (use --force)")
@@ -391,10 +412,11 @@ def v2_curator_generate(private_key: str, public_key: str | None, force: bool) -
 
     _atomic_write(sk_path, sk_hex + "\n", mode=0o600)
 
-    output = {
-        "private_key_path": str(sk_path),
+    output: dict[str, Any] = {
         "public_key_hex": pk_hex,
     }
+    if curator_id is not None:
+        output["curator_id"] = curator_id
 
     if public_key is not None:
         pk_path = _resolve_path(public_key)
@@ -430,20 +452,30 @@ def _tx_body_to_envelope(body: dict[str, Any]) -> dict[str, Any]:
     return {"type": "governance", "body": body}
 
 
+def _derive_previous_registry_root(ledger: Ledger) -> str:
+    """Return the registry root committed to by the next block."""
+    return registry_root(ledger.registry_state_at(ledger.height()))
+
+
+def _candidate_block_height(ledger: Ledger) -> int:
+    """Return the height of the block that would include a new transaction."""
+    return ledger.height() + 1
+
+
 @v2_governance.command(name="register")
+@click.option("--ledger", "-l", required=True, type=click.Path(), help="Ledger JSON file")
 @click.option("--curator-id", required=True, help="New curator identifier")
 @click.option("--public-key", required=True, help="Curator public key hex (64 characters)")
 @click.option("--activation-height", required=True, type=int, help="Block height at which key becomes active")
-@click.option("--previous-registry-root", required=True, help="Registry root before this transaction")
 @click.option("--governance-key", "governance_keys", multiple=True, required=True, help="Path to a governance private key file")
 @click.option("--key-index", "key_indices", multiple=True, type=int, required=True, help="Governance key index for each signature")
 @click.option("--output", "-o", required=True, type=click.Path(), help="Transaction JSON output path")
 @click.option("--force", is_flag=True, help="Overwrite output file")
 def v2_governance_register(
+    ledger: str,
     curator_id: str,
     public_key: str,
     activation_height: int,
-    previous_registry_root: str,
     governance_keys: tuple[str, ...],
     key_indices: tuple[int, ...],
     output: str,
@@ -452,10 +484,10 @@ def v2_governance_register(
     """Build and sign a curator registration transaction."""
     _build_sign_governance_tx(
         action="curator_register",
+        ledger_path=ledger,
         curator_id=curator_id,
         public_key=public_key,
         activation_height=activation_height,
-        previous_registry_root=previous_registry_root,
         governance_keys=list(governance_keys),
         key_indices=list(key_indices),
         output=output,
@@ -464,22 +496,22 @@ def v2_governance_register(
 
 
 @v2_governance.command(name="rotate")
+@click.option("--ledger", "-l", required=True, type=click.Path(), help="Ledger JSON file")
 @click.option("--curator-id", required=True, help="Curator identifier")
 @click.option("--public-key", required=True, help="Current curator public key hex")
 @click.option("--new-public-key", required=True, help="New curator public key hex")
 @click.option("--activation-height", required=True, type=int, help="Height at which new key becomes active")
-@click.option("--previous-registry-root", required=True, help="Registry root before this transaction")
 @click.option("--governance-key", "governance_keys", multiple=True, required=True, help="Path to governance private key files")
 @click.option("--key-index", "key_indices", multiple=True, type=int, required=True, help="Governance key index for each signature")
 @click.option("--curator-private-key", required=True, type=click.Path(), help="Current curator private key file")
 @click.option("--output", "-o", required=True, type=click.Path(), help="Transaction JSON output path")
 @click.option("--force", is_flag=True, help="Overwrite output file")
 def v2_governance_rotate(
+    ledger: str,
     curator_id: str,
     public_key: str,
     new_public_key: str,
     activation_height: int,
-    previous_registry_root: str,
     governance_keys: tuple[str, ...],
     key_indices: tuple[int, ...],
     curator_private_key: str,
@@ -489,11 +521,11 @@ def v2_governance_rotate(
     """Build and sign a curator rotation transaction."""
     _build_sign_governance_tx(
         action="curator_rotate",
+        ledger_path=ledger,
         curator_id=curator_id,
         public_key=public_key,
         new_public_key=new_public_key,
         activation_height=activation_height,
-        previous_registry_root=previous_registry_root,
         governance_keys=list(governance_keys),
         key_indices=list(key_indices),
         curator_private_key=curator_private_key,
@@ -503,22 +535,22 @@ def v2_governance_rotate(
 
 
 @v2_governance.command(name="revoke")
+@click.option("--ledger", "-l", required=True, type=click.Path(), help="Ledger JSON file")
 @click.option("--curator-id", required=True, help="Curator identifier")
 @click.option("--public-key", required=True, help="Current curator public key hex")
 @click.option("--revocation-height", required=True, type=int, help="Height at which key is revoked")
 @click.option("--reason", required=True, help="Revocation reason code")
-@click.option("--previous-registry-root", required=True, help="Registry root before this transaction")
 @click.option("--governance-key", "governance_keys", multiple=True, required=True, help="Path to governance private key files")
 @click.option("--key-index", "key_indices", multiple=True, type=int, required=True, help="Governance key index for each signature")
 @click.option("--curator-private-key", required=True, type=click.Path(), help="Current curator private key file")
 @click.option("--output", "-o", required=True, type=click.Path(), help="Transaction JSON output path")
 @click.option("--force", is_flag=True, help="Overwrite output file")
 def v2_governance_revoke(
+    ledger: str,
     curator_id: str,
     public_key: str,
     revocation_height: int,
     reason: str,
-    previous_registry_root: str,
     governance_keys: tuple[str, ...],
     key_indices: tuple[int, ...],
     curator_private_key: str,
@@ -528,11 +560,11 @@ def v2_governance_revoke(
     """Build and sign a curator revocation transaction."""
     _build_sign_governance_tx(
         action="curator_revoke",
+        ledger_path=ledger,
         curator_id=curator_id,
         public_key=public_key,
         revocation_height=revocation_height,
         reason=reason,
-        previous_registry_root=previous_registry_root,
         governance_keys=list(governance_keys),
         key_indices=list(key_indices),
         curator_private_key=curator_private_key,
@@ -543,9 +575,9 @@ def v2_governance_revoke(
 
 def _build_sign_governance_tx(
     action: str,
+    ledger_path: str,
     curator_id: str,
     public_key: str,
-    previous_registry_root: str,
     governance_keys: list[str],
     key_indices: list[int],
     output: str,
@@ -563,36 +595,120 @@ def _build_sign_governance_tx(
 
     if len(governance_keys) != len(key_indices):
         raise CLIError("each --governance-key must have a matching --key-index")
+    if not governance_keys:
+        raise CLIError("at least one --governance-key is required")
 
-    priv_keys = _load_governance_keys(governance_keys)
+    led = _load_ledger(_resolve_path(ledger_path))
+    candidate_height = _candidate_block_height(led)
+    previous_registry_root = _derive_previous_registry_root(led)
+    state = led.registry_state_at(led.height())
+
+    # Validate public key format early with a clear error.
+    try:
+        decode_public_key(public_key)
+    except Exception as exc:
+        raise CLIError(f"invalid public key: {exc}") from exc
 
     body: dict[str, Any] = {
         "action": action,
         "curator_id": curator_id,
         "public_key_hex": public_key,
         "previous_registry_root": previous_registry_root,
+        "network_id": NETWORK_ID,
+        "schema_version": GOVERNANCE_SCHEMA_VERSION,
     }
+
     if action == "curator_register":
+        if activation_height is None:
+            raise CLIError("--activation-height is required for curator_register")
+        if activation_height <= candidate_height:
+            raise CLIError(
+                f"activation_height ({activation_height}) must be greater than "
+                f"candidate block height ({candidate_height})"
+            )
         body["activation_height"] = activation_height
+        # Reject registering an already-used curator id or public key.
+        for record in state.records:
+            if record.curator_id == curator_id:
+                raise CLIError(f"curator_id {curator_id!r} is already registered")
+            if record.public_key_hex == public_key:
+                raise CLIError(f"public key is already registered under {record.curator_id!r}")
+
     elif action == "curator_rotate":
+        if activation_height is None:
+            raise CLIError("--activation-height is required for curator_rotate")
+        if new_public_key is None:
+            raise CLIError("--new-public-key is required for curator_rotate")
+        if activation_height <= candidate_height:
+            raise CLIError(
+                f"activation_height ({activation_height}) must be greater than "
+                f"candidate block height ({candidate_height})"
+            )
         body["activation_height"] = activation_height
         body["new_public_key_hex"] = new_public_key
+        _require_active_curator_key(state, curator_id, public_key)
+        try:
+            decode_public_key(new_public_key)
+        except Exception as exc:
+            raise CLIError(f"invalid new public key: {exc}") from exc
+        for record in state.records:
+            if record.public_key_hex == new_public_key and record.curator_id != curator_id:
+                raise CLIError(f"new public key is already registered under {record.curator_id!r}")
+
     elif action == "curator_revoke":
+        if revocation_height is None:
+            raise CLIError("--revocation-height is required for curator_revoke")
+        if reason is None:
+            raise CLIError("--reason is required for curator_revoke")
+        if revocation_height <= candidate_height:
+            raise CLIError(
+                f"revocation_height ({revocation_height}) must be greater than "
+                f"candidate block height ({candidate_height})"
+            )
         body["revocation_height"] = revocation_height
         body["reason_code"] = reason
+        record = _require_active_curator_key(state, curator_id, public_key)
+        if record.revocation_height is not None:
+            raise CLIError("curator is already revoked")
+        if revocation_height < record.activation_height:
+            raise CLIError(
+                f"revocation_height ({revocation_height}) must be >= "
+                f"activation_height ({record.activation_height})"
+            )
 
-    # Add curator signature for rotate/revoke
+    # Add curator signature for rotate/revoke.
     if action in ("curator_rotate", "curator_revoke"):
         if curator_private_key is None:
             raise CLIError(f"--curator-private-key is required for {action}")
         curator_sk = _load_private_key(_resolve_path(curator_private_key))
-        body["curator_signature"] = make_curator_signature(curator_sk, body)
+        # The curator signs the body without any witness fields.
+        body_without_curator = {k: v for k, v in body.items() if k not in {"governance_signatures", "curator_signature"}}
+        body["curator_signature"] = make_curator_signature(curator_sk, body_without_curator)
 
-    # Governance signatures in provided order; canonical txid will sort them.
+    # Governance signatures in provided order; the body written to disk will sort them canonically.
+    priv_keys = _load_governance_keys(governance_keys)
+    seen_indices: set[int] = set()
     sigs = []
     for sk, idx in zip(priv_keys, key_indices):
-        sigs.append(make_governance_signature(sk, body, idx))
-    body["governance_signatures"] = [s.to_dict() for s in sigs]
+        if idx in seen_indices:
+            raise CLIError(f"duplicate governance key index: {idx}")
+        seen_indices.add(idx)
+        if idx < 0 or idx >= len(led.governance_keys):
+            raise CLIError(f"governance key index {idx} out of range (0..{len(led.governance_keys) - 1})")
+        # Sign over the body without any witness fields to match the ledger reducer.
+        body_without_witness = {k: v for k, v in body.items() if k not in {"governance_signatures", "curator_signature"}}
+        sigs.append(make_governance_signature(sk, body_without_witness, idx))
+
+    # Canonical ordering by key_index.
+    body["governance_signatures"] = [s.to_dict() for s in sorted(sigs, key=lambda s: s.key_index)]
+
+    # Verify the assembled transaction against the ledger's governance context. This catches
+    # insufficient, malformed, or invalid signatures before any output is written.
+    try:
+        ctx = GovernanceContext(led.governance_keys, led.governance_threshold)
+        _validate_governance_body(body, ctx)
+    except (GovernanceError, RegistryError) as exc:
+        raise CLIError(f"governance authorization failed: {exc}") from exc
 
     envelope = _tx_body_to_envelope(body)
     _atomic_write(out_path, json.dumps(envelope, indent=2), mode=0o644)
@@ -601,14 +717,56 @@ def _build_sign_governance_tx(
         "action": action,
         "curator_id": curator_id,
         "canonical_txid": _canonical_txid(body),
+        "previous_registry_root": previous_registry_root,
     }, indent=2))
+
+
+def _require_active_curator_key(state: RegistryState, curator_id: str, public_key_hex: str) -> Any:
+    """Return the active curator record matching curator_id and public_key_hex."""
+    matches = [r for r in state.records if r.curator_id == curator_id]
+    if not matches:
+        raise CLIError(f"unknown curator {curator_id!r}")
+    # Use the latest record for this curator id (highest activation height).
+    record = max(matches, key=lambda r: r.activation_height)
+    if record.public_key_hex != public_key_hex:
+        raise CLIError("public_key_hex does not match active record")
+    if record.revocation_height is not None:
+        raise CLIError("curator is already revoked")
+    return record
+
+
+def _validate_governance_body(body: dict[str, Any], context: GovernanceContext) -> None:
+    """Run the same validation the ledger reducer performs on the assembled body."""
+    from .governance import (
+        CuratorRegisterTx,
+        CuratorRevokeTx,
+        CuratorRotateTx,
+    )
+
+    action = body["action"]
+    tx: CuratorRegisterTx | CuratorRotateTx | CuratorRevokeTx
+    if action == "curator_register":
+        tx = CuratorRegisterTx.from_dict(body)
+    elif action == "curator_rotate":
+        tx = CuratorRotateTx.from_dict(body)
+    elif action == "curator_revoke":
+        tx = CuratorRevokeTx.from_dict(body)
+    else:
+        raise CLIError(f"unsupported governance action: {action}")
+
+    tx_dict = tx.to_dict()
+    witness_keys = {"governance_signatures"}
+    if action in ("curator_rotate", "curator_revoke"):
+        witness_keys.add("curator_signature")
+    body_without_witness = {k: v for k, v in tx_dict.items() if k not in witness_keys}
+    context.verify_governance_signatures(body_without_witness, tx.governance_signatures)
+
 
 
 def _canonical_txid(body: dict[str, Any]) -> str:
     """Return deterministic transaction ID with canonical signature ordering."""
     from .chain import _canonical_txid as chain_canonical_txid
     return chain_canonical_txid(body)
-
 
 # ---------------------------------------------------------------------------
 # v2 attest
