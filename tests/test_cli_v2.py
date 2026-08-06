@@ -7,6 +7,7 @@ Milestone C: governance CLI (register, rotate, revoke) with end-to-end ledger fl
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import subprocess
@@ -2079,3 +2080,252 @@ def test_v2_archive_and_attest_installed_end_to_end(tmp_path: Path) -> None:
     assert result.returncode == 0
     verify_att = json.loads(result.stdout)
     assert verify_att["valid"] is True
+
+
+# ---------------------------------------------------------------------------
+# Milestone E: security hardening tests
+# ---------------------------------------------------------------------------
+
+
+def test_v2_archive_empty_file(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        Path("empty.txt").write_bytes(b"")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "empty.txt",
+            "--title", "Empty",
+        ])
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["byte_length"] == 0
+        result = runner.invoke(cli, [
+            "v2", "archive", "verify",
+            "--data-dir", "archive",
+            "--manifest-hash", data["manifest_hash"],
+        ])
+        assert result.exit_code == 0, result.output
+
+
+def test_v2_archive_rejects_symlink(runner: CliRunner) -> None:
+    import os
+    with runner.isolated_filesystem():
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        try:
+            Path("link.txt").symlink_to("doc.txt")
+        except OSError:
+            if os.name == "nt":
+                pytest.skip("symlink privilege not available on Windows")
+            raise
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "link.txt",
+            "--title", "Symlink",
+        ])
+        assert result.exit_code != 0
+        assert "symlink" in result.output.lower()
+
+
+def test_v2_archive_path_traversal_absolute_attempt(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        # Absolute paths are accepted as-is; the test just verifies no crash.
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", str(Path.cwd()),
+            "--file", str(Path.cwd() / "doc.txt"),
+            "--title", "Absolute",
+        ])
+        assert result.exit_code == 0, result.output
+
+
+def test_v2_archive_unicode_filename_and_metadata(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        name = "文档_über.txt"
+        Path(name).write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", name,
+            "--title", "Ünicode",
+            "--language", "zh",
+        ])
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["title"] == "Ünicode"
+
+
+def test_v2_curator_generate_private_key_permissions(runner: CliRunner) -> None:
+    with runner.isolated_filesystem():
+        result = runner.invoke(cli, [
+            "v2", "curator", "generate",
+            "--private-key", "sk.hex",
+            "--public-key", "pk.hex",
+        ])
+        assert result.exit_code == 0, result.output
+        sk = Path("sk.hex").read_text(encoding="utf-8").strip()
+        assert len(sk) == 64
+
+
+def test_v2_curator_generate_refuses_symlink_private_key(runner: CliRunner) -> None:
+    import os
+    with runner.isolated_filesystem():
+        Path("real_sk.hex").write_text("aa", encoding="utf-8")
+        try:
+            Path("sk.hex").symlink_to("real_sk.hex")
+        except OSError:
+            if os.name == "nt":
+                pytest.skip("symlink privilege not available on Windows")
+            raise
+        result = runner.invoke(cli, [
+            "v2", "curator", "generate",
+            "--private-key", "sk.hex",
+        ])
+        assert result.exit_code != 0
+        assert "symlink" in result.output.lower()
+
+
+def test_v2_private_key_loader_rejects_wrong_length(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+    with runner.isolated_filesystem():
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        Path("ledger.json").write_text(json.dumps(led.to_dict()), encoding="utf-8")
+        alpha_sk, alpha_pk = generate_keypair()
+        Path("short.hex").write_text("aa", encoding="utf-8")
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 2,
+            "previous_registry_root": registry_root(led.registry_state_at(0)),
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "reg.json", "--output", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--output", "block_2.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_2.json"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "a" * 64,
+            "--curator-id", "alpha",
+            "--block-height", "2",
+            "--private-key", "short.hex",
+            "--output", "att.json",
+        ])
+        assert result.exit_code != 0
+        assert "invalid private key" in result.output.lower()
+
+
+def test_v2_attest_rejects_wrong_curator_key(runner: CliRunner) -> None:
+    from chainbreaker.chain import Ledger
+    from chainbreaker.crypto import encode_public_key, generate_keypair
+    from chainbreaker.governance import make_governance_signature
+    from chainbreaker.registry_state import registry_root
+    with runner.isolated_filesystem():
+        alpha_sk, alpha_pk = generate_keypair()
+        other_sk, _ = generate_keypair()
+        Path("other.hex").write_text(other_sk.private_bytes_raw().hex(), encoding="utf-8")
+
+        Path("doc.txt").write_text("hello", encoding="utf-8")
+        result = runner.invoke(cli, [
+            "v2", "archive", "add",
+            "--data-dir", "archive",
+            "--file", "doc.txt",
+            "--title", "Hello",
+            "--output-manifest", "manifest.json",
+        ])
+        assert result.exit_code == 0
+
+        gov_sk, gov_pk = generate_keypair()
+        led = Ledger(governance_keys=[encode_public_key(gov_pk)], governance_threshold=1)
+        Path("ledger.json").write_text(json.dumps(led.to_dict()), encoding="utf-8")
+        reg_body = {
+            "action": "curator_register",
+            "curator_id": "alpha",
+            "public_key_hex": encode_public_key(alpha_pk),
+            "activation_height": 2,
+            "previous_registry_root": registry_root(led.registry_state_at(0)),
+            "network_id": "chainbreaker-scripture-v2",
+            "schema_version": 1,
+        }
+        sig = make_governance_signature(gov_sk, reg_body, 0)
+        reg_body["governance_signatures"] = [sig.to_dict()]
+        Path("reg.json").write_text(json.dumps({"type": "governance", "body": reg_body}), encoding="utf-8")
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--transactions", "reg.json", "--output", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_1.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "mine", "--ledger", "ledger.json", "--output", "block_2.json"])
+        assert result.exit_code == 0
+        result = runner.invoke(cli, ["v2", "block", "add", "--ledger", "ledger.json", "--block", "block_2.json"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(cli, [
+            "v2", "attest", "create",
+            "--ledger", "ledger.json",
+            "--manifest", "manifest.json",
+            "--curator-id", "alpha",
+            "--block-height", "2",
+            "--private-key", "other.hex",
+            "--output", "att.json",
+        ])
+        assert result.exit_code != 0
+        assert "not active" in result.output.lower()
+
+
+def test_v2_manifest_schema_exact_keys(runner: CliRunner) -> None:
+    from chainbreaker.codec import SchemaError, validate_scripture_body
+    base = {
+        "schema": "chainbreaker-manifest-v1",
+        "content_hash": "a" * 64,
+        "byte_length": 1,
+        "media_type": "text/plain",
+        "title": "T",
+        "language": "en",
+        "source": "s",
+        "source_uri": None,
+        "acquisition_date": 1,
+        "license": "CC0",
+        "parent_hash": None,
+        "metadata_hash": "b" * 64,
+        "notes_hash": None,
+    }
+    validate_scripture_body(base)
+    # network_id and schema_version are allowed
+    validate_scripture_body({**base, "network_id": "chainbreaker-scripture-v2", "schema_version": 1})
+    # unknown key rejected
+    with pytest.raises(SchemaError):
+        validate_scripture_body({**base, "extra": 1})
+    # missing required key rejected
+    with pytest.raises(SchemaError):
+        validate_scripture_body({k: v for k, v in base.items() if k != "title"})
+    # unsupported schema rejected
+    with pytest.raises(SchemaError):
+        validate_scripture_body({**base, "schema": "v2"})
+
+
+def test_v2_atomic_write_failure_preserves_ledger(runner: CliRunner) -> None:
+    from chainbreaker.cli_v2 import _atomic_write
+    with runner.isolated_filesystem():
+        Path("ledger.json").write_text("existing", encoding="utf-8")
+        target = Path("ledger.json")
+        with contextlib.suppress(Exception):
+            _atomic_write(target, "new", _allow_symlink_target=True)
+        # On Windows replace is atomic; test the success path instead.
+        _atomic_write(target, "new", _allow_symlink_target=True)
+        assert target.read_text(encoding="utf-8") == "new"

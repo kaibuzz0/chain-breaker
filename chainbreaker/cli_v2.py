@@ -57,11 +57,16 @@ ALPHA_MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024  # 1 GB soft ceiling for alpha usag
 def _stream_hash(path: Path, max_bytes: int = ALPHA_MAX_FILE_SIZE) -> tuple[str, int]:
     """Return (sha256_hex, byte_length) reading the file in chunks.
 
-    This avoids loading unbounded files entirely into memory.
+    This avoids loading unbounded files entirely into memory. The default
+    ``ALPHA_MAX_FILE_SIZE`` (1 GB) is a hard rejection ceiling for the alpha
+    release; files at or below this limit stream normally, files above it are
+    rejected with a clear message. There is currently no override flag.
     """
     import hashlib
 
     path = _resolve_path(str(path))
+    if path.is_symlink():
+        raise CLIError(f"refusing to read through symlink: {path}")
     if not path.exists():
         raise CLIError(f"file not found: {path}")
     if not path.is_file():
@@ -70,7 +75,7 @@ def _stream_hash(path: Path, max_bytes: int = ALPHA_MAX_FILE_SIZE) -> tuple[str,
     if size > max_bytes:
         raise CLIError(
             f"file too large: {path} ({size} bytes > {max_bytes}). "
-            "Alpha supports files up to 1 GB; contact operators for larger archives."
+            "Alpha rejects files larger than 1 GB; contact operators for larger archives."
         )
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -118,22 +123,34 @@ def _resolve_path(path_str: str) -> Path:
 def _safe_read(path: Path, max_bytes: int = MAX_FILE_SIZE) -> bytes:
     """Read a file with size limits and clear errors."""
     path = _resolve_path(str(path))
+    if path.is_symlink():
+        raise CLIError(f"refusing to read through symlink: {path}")
     if not path.exists():
         raise CLIError(f"file not found: {path}")
     if not path.is_file():
         raise CLIError(f"not a file: {path}")
     size = path.stat().st_size
+    if max_bytes <= 0:
+        raise CLIError("max_bytes must be positive")
     if size > max_bytes:
         raise CLIError(f"file too large: {path} ({size} bytes > {max_bytes})")
     return path.read_bytes()
 
 
-def _atomic_write(path: Path, data: str | bytes, mode: int = 0o600) -> None:
-    """Write data to a temporary file in the same directory, then rename atomically."""
+def _atomic_write(path: Path, data: str | bytes, mode: int = 0o600, *, _allow_symlink_target: bool = False) -> None:
+    """Write data to a temporary file in the same directory, then rename atomically.
+
+    If the write fails, the original file at ``path`` is preserved.  On
+    Windows this is a best-effort rename; symlink-related races are not fully
+    prevented by the OS, so callers should reject unexpected symlinks for
+    security-sensitive outputs.
+    """
     import contextlib
 
     path = _resolve_path(str(path))
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.is_symlink() and not _allow_symlink_target:
+        raise CLIError(f"refusing to write through symlink: {path}")
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
     try:
         if isinstance(data, str):
@@ -144,6 +161,7 @@ def _atomic_write(path: Path, data: str | bytes, mode: int = 0o600) -> None:
                 f.write(data)
         with contextlib.suppress(OSError):
             os.chmod(tmp, mode)
+        # On POSIX, os.replace is atomic and preserves the original path on failure.
         os.replace(tmp, path)
     except Exception:
         with contextlib.suppress(OSError):
@@ -196,9 +214,17 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 
 def _load_private_key(path: Path) -> Any:
-    """Load a raw 32-byte Ed25519 private key from a hex file."""
+    """Load a raw 32-byte Ed25519 private key from a hex file.
+
+    Errors include only the path, never the key bytes.
+    """
     try:
-        return decode_private_key(_safe_read(path).decode("utf-8").strip())
+        raw_hex = _safe_read(path).decode("utf-8").strip()
+        if len(raw_hex.encode("utf-8")) > 128:
+            raise CLIError("private key file is too large")
+        return decode_private_key(raw_hex)
+    except CLIError:
+        raise
     except Exception as exc:
         raise CLIError(f"invalid private key file {path}: {exc}") from exc
 
@@ -443,6 +469,9 @@ def v2_curator_generate(curator_id: str | None, private_key: str, public_key: st
     on POSIX). It is never printed, logged, or returned as JSON. Only the
     curator identifier and the public key hex are emitted.
     """
+    sk_path = Path(private_key)
+    if sk_path.is_symlink() and not force:
+        raise CLIError(f"refusing to write private key through symlink: {sk_path}")
     sk_path = _resolve_path(private_key)
     if sk_path.exists() and not force:
         raise CLIError(f"refusing to overwrite private key: {sk_path} (use --force)")
@@ -451,7 +480,7 @@ def v2_curator_generate(curator_id: str | None, private_key: str, public_key: st
     sk_hex = sk.private_bytes_raw().hex()
     pk_hex = encode_public_key(pk)
 
-    _atomic_write(sk_path, sk_hex + "\n", mode=0o600)
+    _atomic_write(sk_path, sk_hex + chr(10), mode=0o600)
 
     output: dict[str, Any] = {
         "public_key_hex": pk_hex,
@@ -460,14 +489,27 @@ def v2_curator_generate(curator_id: str | None, private_key: str, public_key: st
         output["curator_id"] = curator_id
 
     if public_key is not None:
+        pk_path = Path(public_key)
+        if pk_path.is_symlink() and not force:
+            raise CLIError(f"refusing to write public key through symlink: {pk_path}")
         pk_path = _resolve_path(public_key)
         if pk_path.exists() and not force:
             raise CLIError(f"refusing to overwrite public key: {pk_path} (use --force)")
-        _atomic_write(pk_path, pk_hex + "\n", mode=0o644)
+        _atomic_write(pk_path, pk_hex + chr(10), mode=0o644)
         output["public_key_path"] = str(pk_path)
 
-    click.echo(json.dumps(output, indent=2))
+    # Verify restrictive permissions were applied where the OS supports it.
+    # On Windows the chmod call is a no-op for permission bits, so we only
+    # enforce the check on POSIX systems.
+    if os.name != "nt":
+        try:
+            mode = sk_path.stat().st_mode
+            if (mode & 0o077) != 0:
+                raise CLIError(f"private key file has overly permissive mode: {oct(mode)}")
+        except OSError:
+            pass
 
+    click.echo(json.dumps(output, indent=2))
 
 # ---------------------------------------------------------------------------
 # v2 governance
@@ -846,7 +888,10 @@ def v2_attest_create(
     if out_path.exists() and not force:
         raise CLIError(f"refusing to overwrite existing file: {out_path} (use --force)")
 
-    led = _load_ledger(_resolve_path(ledger))
+    ledger_path = _resolve_path(ledger)
+    if ledger_path.is_symlink():
+        raise CLIError(f"refusing to read ledger through symlink: {ledger_path}")
+    led = _load_ledger(ledger_path)
     try:
         state = led.registry_state_at(block_height)
     except LedgerError as exc:
@@ -896,7 +941,10 @@ def v2_attest_verify(
     Historical validity is evaluated at block_height, independent of the current
     wall clock.
     """
-    led = _load_ledger(_resolve_path(ledger))
+    ledger_path = _resolve_path(ledger)
+    if ledger_path.is_symlink():
+        raise CLIError(f"refusing to read ledger through symlink: {ledger_path}")
+    led = _load_ledger(ledger_path)
     try:
         state = led.registry_state_at(block_height)
     except LedgerError as exc:
@@ -982,12 +1030,17 @@ def v2_archive_add(
     never loaded entirely into memory. Alpha usage is soft-capped at 1 GB.
     """
     base = _resolve_path(data_dir)
-    in_path = _resolve_path(input_file)
     # Reject relative paths that try to escape the current working directory.
     for raw_path in (data_dir, input_file):
         p_raw = Path(raw_path)
         if not p_raw.is_absolute() and any(part == ".." for part in p_raw.parts):
             raise CLIError("path traversal is not allowed")
+    in_raw = Path(input_file)
+    if in_raw.is_symlink():
+        raise CLIError(f"refusing to archive through symlink: {in_raw}")
+    in_path = _resolve_path(input_file)
+    if not in_path.exists():
+        raise CLIError(f"file not found: {in_path}")
 
     content_hash, byte_length = _stream_hash(in_path)
 
@@ -1059,6 +1112,8 @@ def v2_archive_verify(
 ) -> None:
     """Verify stored manifest and content integrity."""
     base = _resolve_path(data_dir)
+    if base.is_symlink():
+        raise CLIError(f"refusing to read archive through symlink: {base}")
     archive = Archive(str(base))
 
     try:

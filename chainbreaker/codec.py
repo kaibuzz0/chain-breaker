@@ -373,8 +373,8 @@ def validate_scripture_body(body: dict[str, Any]) -> None:
     if body["notes_hash"] is not None and not _is_hash(body["notes_hash"]):
         raise SchemaError("notes_hash must be null or a 64-char hex SHA-256")
 
-    if not _require_int(body["byte_length"], min_value=1):
-        raise SchemaError("byte_length must be a positive integer")
+    if not _require_int(body["byte_length"], min_value=0):
+        raise SchemaError("byte_length must be a non-negative integer")
 
     for key in ("media_type", "title", "language", "source", "source_uri", "license"):
         if not _require_string(body[key], nullable=True):
