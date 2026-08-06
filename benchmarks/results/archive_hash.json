@@ -1,0 +1,24 @@
+{
+  "mean": 0.04264713099999426,
+  "median": 0.04264713099999426,
+  "min": 0.00926337599999897,
+  "max": 0.07603088599998956,
+  "stddev": 0.04721175908393397,
+  "iterations": 50,
+  "sizes_mb": [
+    1,
+    10
+  ],
+  "throughput_per_second": 23.448236177953792,
+  "suite": "archive_hash",
+  "environment": {
+    "os": "Windows-10-10.0.26100-SP0",
+    "python_version": "3.11.15",
+    "processor": "AMD64",
+    "cpu_count": 4,
+    "machine": "AMD64",
+    "commit": "ref: refs/heads/production-readiness-review",
+    "timestamp": "2026-08-06T01:30:08Z"
+  },
+  "unit": "seconds per MB archive hash"
+}

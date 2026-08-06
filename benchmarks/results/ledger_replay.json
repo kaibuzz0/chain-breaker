@@ -1,0 +1,21 @@
+{
+  "mean": 0.0014936299998225878,
+  "median": 0.0014102499999353313,
+  "min": 0.0012419999993653619,
+  "max": 0.0020235000001775916,
+  "stddev": 0.00024476117192244457,
+  "iterations": 10,
+  "chain_length": 201,
+  "throughput_per_second": 134571.4802353157,
+  "suite": "ledger_replay",
+  "environment": {
+    "os": "Windows-10-10.0.26100-SP0",
+    "python_version": "3.11.15",
+    "processor": "AMD64",
+    "cpu_count": 4,
+    "machine": "AMD64",
+    "commit": "ref: refs/heads/production-readiness-review",
+    "timestamp": "2026-08-06T01:30:02Z"
+  },
+  "unit": "seconds to replay full chain"
+}

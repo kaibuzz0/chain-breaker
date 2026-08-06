@@ -1,0 +1,29 @@
+{
+  "suite": "attest",
+  "iterations": 1000,
+  "create": {
+    "mean": 6.07077000049685e-05,
+    "median": 5.429999964690069e-05,
+    "min": 4.939999962516595e-05,
+    "max": 0.0005167999997865991,
+    "stddev": 2.4987277851557402e-05
+  },
+  "verify": {
+    "mean": 6.489999923360301e-07,
+    "median": 6.000000212225132e-07,
+    "min": 2.999995558639057e-07,
+    "max": 2.1799999558425043e-05,
+    "stddev": 8.14150982386322e-07
+  },
+  "throughput_per_second": 16298138.590307677,
+  "environment": {
+    "os": "Windows-10-10.0.26100-SP0",
+    "python_version": "3.11.15",
+    "processor": "AMD64",
+    "cpu_count": 4,
+    "machine": "AMD64",
+    "commit": "ref: refs/heads/production-readiness-review",
+    "timestamp": "2026-08-06T01:30:04Z"
+  },
+  "unit": "seconds per create+verify pair"
+}

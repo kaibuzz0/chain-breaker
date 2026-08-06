@@ -1,0 +1,21 @@
+{
+  "mean": 0.46721487800001343,
+  "median": 0.46070529999997234,
+  "min": 0.391327999999703,
+  "max": 0.7052456999999777,
+  "stddev": 0.05966140860359797,
+  "iterations": 100,
+  "throughput_per_second": 2.1403427996142947,
+  "suite": "block_mine",
+  "environment": {
+    "os": "Windows-10-10.0.26100-SP0",
+    "python_version": "3.11.15",
+    "processor": "AMD64",
+    "cpu_count": 4,
+    "machine": "AMD64",
+    "commit": "ref: refs/heads/production-readiness-review",
+    "timestamp": "2026-08-06T01:28:21Z"
+  },
+  "unit": "seconds per mine",
+  "note": "mining at genesis target"
+}

@@ -1,0 +1,21 @@
+{
+  "mean": 0.05808099999994738,
+  "median": 0.047763449999820295,
+  "min": 0.03013310000005731,
+  "max": 0.10062310000012076,
+  "stddev": 0.02861906863119145,
+  "iterations": 10,
+  "registry_steps": 100,
+  "throughput_per_second": 1721.7334412301886,
+  "suite": "registry_replay",
+  "environment": {
+    "os": "Windows-10-10.0.26100-SP0",
+    "python_version": "3.11.15",
+    "processor": "AMD64",
+    "cpu_count": 4,
+    "machine": "AMD64",
+    "commit": "ref: refs/heads/production-readiness-review",
+    "timestamp": "2026-08-06T01:30:03Z"
+  },
+  "unit": "seconds to replay registry transactions"
+}
