@@ -1,0 +1,20 @@
+{
+  "mean": 2.2733999976480846e-05,
+  "median": 1.1550000181159703e-05,
+  "min": 1.0999999176419806e-05,
+  "max": 0.00015489999987039482,
+  "stddev": 3.153630635507323e-05,
+  "iterations": 50,
+  "throughput_per_second": 43986.97989946936,
+  "suite": "startup",
+  "environment": {
+    "os": "Windows-10-10.0.26100-SP0",
+    "python_version": "3.11.15",
+    "processor": "AMD64",
+    "cpu_count": 4,
+    "machine": "AMD64",
+    "commit": "ref: refs/heads/production-readiness-review",
+    "timestamp": "2026-08-06T01:34:44Z"
+  },
+  "unit": "seconds to create genesis block"
+}

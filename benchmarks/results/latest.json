@@ -1,0 +1,195 @@
+{
+  "sha256": {
+    "mean": 4.850257000007332e-06,
+    "median": 2.9000002541579306e-06,
+    "min": 2.6999996407539584e-06,
+    "max": 0.03497209999932238,
+    "stddev": 0.00016533785901091453,
+    "iterations": 100000,
+    "throughput_per_second": 20617464187.948975,
+    "suite": "sha256",
+    "environment": {
+      "os": "Windows-10-10.0.26100-SP0",
+      "python_version": "3.11.15",
+      "processor": "AMD64",
+      "cpu_count": 4,
+      "machine": "AMD64",
+      "commit": "ref: refs/heads/production-readiness-review",
+      "timestamp": "2026-08-06T01:27:34Z"
+    },
+    "unit": "seconds per hash"
+  },
+  "block_verify": {
+    "mean": 7.206699995822419e-06,
+    "median": 6.400000529538374e-06,
+    "min": 6.100000064179767e-06,
+    "max": 0.0002745000001596054,
+    "stddev": 7.676912051039355e-06,
+    "iterations": 10000,
+    "throughput_per_second": 138759.76529891352,
+    "suite": "block_verify",
+    "environment": {
+      "os": "Windows-10-10.0.26100-SP0",
+      "python_version": "3.11.15",
+      "processor": "AMD64",
+      "cpu_count": 4,
+      "machine": "AMD64",
+      "commit": "ref: refs/heads/production-readiness-review",
+      "timestamp": "2026-08-06T01:27:34Z"
+    },
+    "unit": "seconds per verification"
+  },
+  "block_mine": {
+    "mean": 0.46721487800001343,
+    "median": 0.46070529999997234,
+    "min": 0.391327999999703,
+    "max": 0.7052456999999777,
+    "stddev": 0.05966140860359797,
+    "iterations": 100,
+    "throughput_per_second": 2.1403427996142947,
+    "suite": "block_mine",
+    "environment": {
+      "os": "Windows-10-10.0.26100-SP0",
+      "python_version": "3.11.15",
+      "processor": "AMD64",
+      "cpu_count": 4,
+      "machine": "AMD64",
+      "commit": "ref: refs/heads/production-readiness-review",
+      "timestamp": "2026-08-06T01:28:21Z"
+    },
+    "unit": "seconds per mine",
+    "note": "mining at genesis target"
+  },
+  "ledger_replay": {
+    "mean": 0.0014936299998225878,
+    "median": 0.0014102499999353313,
+    "min": 0.0012419999993653619,
+    "max": 0.0020235000001775916,
+    "stddev": 0.00024476117192244457,
+    "iterations": 10,
+    "chain_length": 201,
+    "throughput_per_second": 134571.4802353157,
+    "suite": "ledger_replay",
+    "environment": {
+      "os": "Windows-10-10.0.26100-SP0",
+      "python_version": "3.11.15",
+      "processor": "AMD64",
+      "cpu_count": 4,
+      "machine": "AMD64",
+      "commit": "ref: refs/heads/production-readiness-review",
+      "timestamp": "2026-08-06T01:30:02Z"
+    },
+    "unit": "seconds to replay full chain"
+  },
+  "registry_replay": {
+    "mean": 0.05808099999994738,
+    "median": 0.047763449999820295,
+    "min": 0.03013310000005731,
+    "max": 0.10062310000012076,
+    "stddev": 0.02861906863119145,
+    "iterations": 10,
+    "registry_steps": 100,
+    "throughput_per_second": 1721.7334412301886,
+    "suite": "registry_replay",
+    "environment": {
+      "os": "Windows-10-10.0.26100-SP0",
+      "python_version": "3.11.15",
+      "processor": "AMD64",
+      "cpu_count": 4,
+      "machine": "AMD64",
+      "commit": "ref: refs/heads/production-readiness-review",
+      "timestamp": "2026-08-06T01:30:03Z"
+    },
+    "unit": "seconds to replay registry transactions"
+  },
+  "attest": {
+    "suite": "attest",
+    "iterations": 1000,
+    "create": {
+      "mean": 6.07077000049685e-05,
+      "median": 5.429999964690069e-05,
+      "min": 4.939999962516595e-05,
+      "max": 0.0005167999997865991,
+      "stddev": 2.4987277851557402e-05
+    },
+    "verify": {
+      "mean": 6.489999923360301e-07,
+      "median": 6.000000212225132e-07,
+      "min": 2.999995558639057e-07,
+      "max": 2.1799999558425043e-05,
+      "stddev": 8.14150982386322e-07
+    },
+    "throughput_per_second": 16298138.590307677,
+    "environment": {
+      "os": "Windows-10-10.0.26100-SP0",
+      "python_version": "3.11.15",
+      "processor": "AMD64",
+      "cpu_count": 4,
+      "machine": "AMD64",
+      "commit": "ref: refs/heads/production-readiness-review",
+      "timestamp": "2026-08-06T01:30:04Z"
+    },
+    "unit": "seconds per create+verify pair"
+  },
+  "archive_hash": {
+    "mean": 0.04264713099999426,
+    "median": 0.04264713099999426,
+    "min": 0.00926337599999897,
+    "max": 0.07603088599998956,
+    "stddev": 0.04721175908393397,
+    "iterations": 50,
+    "sizes_mb": [
+      1,
+      10
+    ],
+    "throughput_per_second": 23.448236177953792,
+    "suite": "archive_hash",
+    "environment": {
+      "os": "Windows-10-10.0.26100-SP0",
+      "python_version": "3.11.15",
+      "processor": "AMD64",
+      "cpu_count": 4,
+      "machine": "AMD64",
+      "commit": "ref: refs/heads/production-readiness-review",
+      "timestamp": "2026-08-06T01:30:08Z"
+    },
+    "unit": "seconds per MB archive hash"
+  },
+  "memory": {
+    "suite": "memory",
+    "iterations": 1,
+    "chain_length": 501,
+    "current_memory_mb": 5.340576171875e-05,
+    "peak_memory_mb": 0.0011701583862304688,
+    "environment": {
+      "os": "Windows-10-10.0.26100-SP0",
+      "python_version": "3.11.15",
+      "processor": "AMD64",
+      "cpu_count": 4,
+      "machine": "AMD64",
+      "commit": "ref: refs/heads/production-readiness-review",
+      "timestamp": "2026-08-06T01:34:44Z"
+    },
+    "unit": "MB"
+  },
+  "startup": {
+    "mean": 2.2733999976480846e-05,
+    "median": 1.1550000181159703e-05,
+    "min": 1.0999999176419806e-05,
+    "max": 0.00015489999987039482,
+    "stddev": 3.153630635507323e-05,
+    "iterations": 50,
+    "throughput_per_second": 43986.97989946936,
+    "suite": "startup",
+    "environment": {
+      "os": "Windows-10-10.0.26100-SP0",
+      "python_version": "3.11.15",
+      "processor": "AMD64",
+      "cpu_count": 4,
+      "machine": "AMD64",
+      "commit": "ref: refs/heads/production-readiness-review",
+      "timestamp": "2026-08-06T01:34:44Z"
+    },
+    "unit": "seconds to create genesis block"
+  }
+}

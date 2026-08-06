@@ -1,0 +1,17 @@
+{
+  "suite": "memory",
+  "iterations": 1,
+  "chain_length": 501,
+  "current_memory_mb": 5.340576171875e-05,
+  "peak_memory_mb": 0.0011701583862304688,
+  "environment": {
+    "os": "Windows-10-10.0.26100-SP0",
+    "python_version": "3.11.15",
+    "processor": "AMD64",
+    "cpu_count": 4,
+    "machine": "AMD64",
+    "commit": "ref: refs/heads/production-readiness-review",
+    "timestamp": "2026-08-06T01:34:44Z"
+  },
+  "unit": "MB"
+}
