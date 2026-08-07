@@ -1,3 +1,4 @@
+# CONSENSUS-CRITICAL: Protocol V2 consensus-sensitive code. Changes require review per docs/CONSENSUS_CHANGE_POLICY.md.
 
 """Cryptographic primitives for Chain-Breaker.
 
@@ -7,7 +8,6 @@
 - Ed25519 wrappers using the `cryptography` library
 """
 
-# CONSENSUS-CRITICAL: module-level consensus-sensitive code (crypto.py)
 from __future__ import annotations
 
 import hashlib

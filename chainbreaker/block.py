@@ -1,3 +1,4 @@
+# CONSENSUS-CRITICAL: Protocol V2 consensus-sensitive code. Changes require review per docs/CONSENSUS_CHANGE_POLICY.md.
 
 """Block structure, proof-of-work, and validation with 256-bit target."""
 
@@ -43,7 +44,6 @@ GENESIS_HEADER_BYTES = bytes.fromhex("020200000000000000000000000000000000000000
 
 def header_bytes(header: dict[str, Any]) -> bytes:
     """Canonical serialization of a block header."""
-# CONSENSUS-CRITICAL: module-level consensus-sensitive code (block.py)
     return BinaryCodec.encode_header(header)
 
 

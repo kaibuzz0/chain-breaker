@@ -1,0 +1,77 @@
+name: Consensus Mutation Campaign
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - phase7d-consensus-mutation-testing
+      - phase7d-consensus-mutation-testing-2
+      - phase7d-consensus-mutation-testing-*
+
+jobs:
+  mutation-campaign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Print tool versions
+        run: |
+          python --version
+          pip --version
+          rustc --version
+          cargo --version
+
+      - name: Install Python dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Print mutmut version
+        run: |
+          python -m mutmut --version || true
+
+      - name: Run targeted consensus mutation campaign
+        id: targeted
+        timeout-minutes: 90
+        run: |
+          python scripts/run_consensus_mutations.py
+        continue-on-error: true
+
+      - name: Upload mutation results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: consensus-mutation-results
+          path: |
+            docs/CONSENSUS_MUTATION_RESULTS.json
+            docs/CONSENSUS_MUTATION_RESULTS.md
+          if-no-files-found: ignore
+
+      - name: Upload raw mutation log
+        uses: actions/upload-artifact@v4
+        with:
+          name: consensus-mutation-logs
+          path: |
+            mutation.log
+            mutmut.log
+          if-no-files-found: ignore
+
+      - name: Preserve runner exit status
+        run: |
+          echo "targeted_exit=${{ steps.targeted.outcome }}" >> "$GITHUB_OUTPUT"
+
+      - name: Report campaign status
+        run: |
+          echo "Targeted mutation campaign finished with outcome: ${{ steps.targeted.outcome }}"
+          if [ -f docs/CONSENSUS_MUTATION_RESULTS.json ]; then
+            python -c "import json,sys; d=json.load(open('docs/CONSENSUS_MUTATION_RESULTS.json')); print(json.dumps({k:v for k,v in d.items() if k!='records'}, indent=2))"
+          fi
