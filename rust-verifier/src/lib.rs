@@ -1,7 +1,6 @@
 use ed25519_dalek::{Signature, VerifyingKey};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::io;
 use thiserror::Error;
@@ -196,6 +195,18 @@ fn canonical_json(value: &Value) -> String {
         Value::Bool(b) => b.to_string(),
         Value::Null => "null".to_string(),
     }
+}
+
+fn sorted_json_object(input: &Value) -> Value {
+    let mut map = serde_json::Map::new();
+    if let Some(obj) = input.as_object() {
+        let mut pairs: Vec<(&String, &Value)> = obj.iter().collect();
+        pairs.sort_by(|a, b| a.0.cmp(b.0));
+        for (k, v) in pairs {
+            map.insert(k.clone(), v.clone());
+        }
+    }
+    Value::Object(map)
 }
 
 fn escape_json(s: &str) -> String {
