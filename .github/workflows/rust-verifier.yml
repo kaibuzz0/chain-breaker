@@ -35,6 +35,3 @@ jobs:
 
       - name: Run Rust verifier against frozen vectors
         run: cargo run --manifest-path rust-verifier/Cargo.toml -- verify test-vectors
-
-      - name: Generate Cargo.lock
-        run: cargo generate-lockfile --manifest-path rust-verifier/Cargo.toml

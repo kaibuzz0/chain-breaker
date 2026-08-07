@@ -1,29 +1,25 @@
-# Chain-Breaker Independent Rust Verifier
+# Chain-Breaker V2 Independent Rust Verifier
 
-A minimal, dependency-light Rust crate that independently verifies the
-consensus-critical computations of Chain-Breaker Protocol v2.
+This crate re-implements the consensus-critical primitives of Chain-Breaker
+Protocol V2 in Rust. It reads only the frozen `test-vectors/` files from the
+parent repository and verifies that the Rust implementation reproduces the
+expected bytes, hashes, and decisions exactly.
 
-## Scope
+## Independence rules
 
-- Header v2 canonical serialization (149 bytes).
-- Double SHA-256 block hashing.
-- Proof-of-work target comparison.
-- Genesis header validation against frozen constants.
-- Registry-root calculation from canonical registry-state bytes.
+- No Python imports.
+- No subprocess calls to Python.
+- No runtime use of Python-generated values.
+- Expected outputs come only from frozen vector files.
 
-This crate does **not** implement networking, storage, CLI, or consensus
-policy beyond pure arithmetic/serialization checks. It is intended as a
-cross-language correctness oracle for the Python implementation.
-
-## Build
+## Run
 
 ```bash
-cargo build --release
-cargo test
+cargo run --manifest-path rust-verifier/Cargo.toml -- verify test-vectors
 ```
 
-## Usage
+## Test
 
 ```bash
-cargo run --bin verify-vectors -- ../test-vectors
+cargo test --manifest-path rust-verifier/Cargo.toml
 ```
