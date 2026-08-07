@@ -1,6 +1,6 @@
-use sha2::{Digest, Sha256};
-use ed25519_dalek::{VerifyingKey, Signature};
+use ed25519_dalek::{Signature, VerifyingKey};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::io;
@@ -26,7 +26,11 @@ pub enum VerifyError {
     #[error("length mismatch expected={expected} got={got}")]
     Length { expected: usize, got: usize },
     #[error("mismatch at {context}: expected {expected:?}, got {actual:?}")]
-    Mismatch { context: String, expected: String, actual: String },
+    Mismatch {
+        context: String,
+        expected: String,
+        actual: String,
+    },
 }
 
 pub type Result<T> = std::result::Result<T, VerifyError>;
@@ -71,7 +75,10 @@ pub struct HeaderV2 {
 impl HeaderV2 {
     pub fn decode_strict(data: &[u8]) -> Result<Self> {
         if data.len() != HEADER_V2_LEN {
-            return Err(VerifyError::Length { expected: HEADER_V2_LEN, got: data.len() });
+            return Err(VerifyError::Length {
+                expected: HEADER_V2_LEN,
+                got: data.len(),
+            });
         }
         if data[0] != TYPE_HEADER {
             return Err(VerifyError::Protocol(format!(
@@ -225,11 +232,20 @@ pub fn build_attestation_preimage(
     block_height: u64,
 ) -> Value {
     let mut map = BTreeMap::new();
-    map.insert("network_id".to_string(), Value::String(network_id.to_string()));
+    map.insert(
+        "network_id".to_string(),
+        Value::String(network_id.to_string()),
+    );
     map.insert("version".to_string(), Value::Number(version.into()));
     map.insert("type".to_string(), Value::String("attestation".to_string()));
-    map.insert("body_hash".to_string(), Value::String(body_hash.to_string()));
-    map.insert("curator_id".to_string(), Value::String(curator_id.to_string()));
+    map.insert(
+        "body_hash".to_string(),
+        Value::String(body_hash.to_string()),
+    );
+    map.insert(
+        "curator_id".to_string(),
+        Value::String(curator_id.to_string()),
+    );
     map.insert(
         "block_height".to_string(),
         Value::Number(block_height.into()),

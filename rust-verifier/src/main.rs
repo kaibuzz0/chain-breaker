@@ -44,7 +44,10 @@ fn run_all(dir: &PathBuf) -> Result<String, VerifyError> {
     run_check!("merkle", check_merkle(dir));
     run_check!("registry-state", check_registry_state(dir));
     run_check!("governance-register", check_governance_register(dir));
-    run_check!("governance-rotate-revoke", check_governance_rotate_revoke(dir));
+    run_check!(
+        "governance-rotate-revoke",
+        check_governance_rotate_revoke(dir)
+    );
     run_check!("attestation-v2", check_attestation(dir));
     run_check!("ed25519", check_ed25519(dir));
     run_check!("block", check_block(dir));
@@ -70,7 +73,8 @@ fn as_array(v: &serde_json::Value, context: &str) -> Result<&Vec<serde_json::Val
 fn check_header_v2(dir: &PathBuf) -> Result<(), VerifyError> {
     let val = load_json(dir, "header-v2.json")?;
     for v in as_array(
-        val.get("vectors").ok_or_else(|| VerifyError::Protocol("missing vectors".into()))?,
+        val.get("vectors")
+            .ok_or_else(|| VerifyError::Protocol("missing vectors".into()))?,
         "header-v2",
     )? {
         let bytes = hex::decode(
@@ -261,10 +265,7 @@ fn check_merkle(dir: &PathBuf) -> Result<(), VerifyError> {
                     .ok_or_else(|| VerifyError::Protocol("missing expected_root_hex".into()))?;
                 if hex::encode(root) != expected {
                     return Err(VerifyError::Mismatch {
-                        context: format!(
-                            "merkle {}-leaf",
-                            v["leaf_count"].as_u64().unwrap_or(0)
-                        ),
+                        context: format!("merkle {}-leaf", v["leaf_count"].as_u64().unwrap_or(0)),
                         expected: expected.into(),
                         actual: hex::encode(root),
                     });
@@ -309,15 +310,11 @@ fn check_governance_register(dir: &PathBuf) -> Result<(), VerifyError> {
     .iter()
     .map(|v| v.as_str().unwrap().to_string())
     .collect();
-    for v in as_array(&val["vectors"],
-        "governance-register vectors",
-    )? {
+    for v in as_array(&val["vectors"], "governance-register vectors")? {
         let body = &v["input"];
         let body_without_witness = remove_witness_keys(body.clone());
         let msg = build_governance_message(&body_without_witness);
-        let sigs = as_array(&body["governance_signatures"],
-            "governance_signatures",
-        )?;
+        let sigs = as_array(&body["governance_signatures"], "governance_signatures")?;
         let should_pass = v["expected_validity"].as_bool().unwrap_or(false);
         let ok = sigs.iter().all(|sig| {
             let idx = sig["key_index"].as_u64().unwrap_or(0) as usize;
@@ -341,25 +338,18 @@ fn check_governance_register(dir: &PathBuf) -> Result<(), VerifyError> {
 
 fn check_governance_rotate_revoke(dir: &PathBuf) -> Result<(), VerifyError> {
     let val = load_json(dir, "governance-rotate-revoke.json")?;
-    let gov_keys: Vec<String> = as_array(&val["governance_keys"],
-        "governance_keys",
-    )?
-    .iter()
-    .map(|v| v.as_str().unwrap().to_string())
-    .collect();
-    for v in as_array(
-        &val["vectors"],
-        "governance-rotate-revoke vectors",
-    )? {
+    let gov_keys: Vec<String> = as_array(&val["governance_keys"], "governance_keys")?
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
+    for v in as_array(&val["vectors"], "governance-rotate-revoke vectors")? {
         if v["action"].as_str().unwrap_or("") == "curator_register" {
             continue;
         }
         let body = &v["input"];
         let body_without_witness = remove_witness_keys(body.clone());
         let msg = build_governance_message(&body_without_witness);
-        let sigs = as_array(&body["governance_signatures"],
-            "governance_signatures",
-        )?;
+        let sigs = as_array(&body["governance_signatures"], "governance_signatures")?;
         let should_pass = v["expected_validity"].as_bool().unwrap_or(false);
         let ok = sigs.iter().all(|sig| {
             let idx = sig["key_index"].as_u64().unwrap_or(0) as usize;
@@ -383,9 +373,7 @@ fn check_governance_rotate_revoke(dir: &PathBuf) -> Result<(), VerifyError> {
 
 fn check_attestation(dir: &PathBuf) -> Result<(), VerifyError> {
     let val = load_json(dir, "attestation-v2.json")?;
-    for v in as_array(&val["vectors"],
-        "attestation vectors",
-    )? {
+    for v in as_array(&val["vectors"], "attestation vectors")? {
         let preimage = build_attestation_preimage(
             v["network_id"]
                 .as_str()
