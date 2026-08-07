@@ -36,6 +36,7 @@ dev = [
     "pip-audit>=2.7.0,<3",
     "bandit>=1.7.0,<2",
     "build>=1.2.0,<2",
+    "mutmut>=3.2.0,<4",
 ]
 
 [project.scripts]

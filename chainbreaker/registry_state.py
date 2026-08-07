@@ -14,6 +14,7 @@ All functions are deterministic and have no filesystem, network, wall-clock,
 or random dependencies.
 """
 
+# CONSENSUS-CRITICAL: module-level consensus-sensitive code (registry_state.py)
 from __future__ import annotations
 
 from dataclasses import dataclass, replace

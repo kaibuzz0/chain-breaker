@@ -7,6 +7,7 @@
 - Ed25519 wrappers using the `cryptography` library
 """
 
+# CONSENSUS-CRITICAL: module-level consensus-sensitive code (crypto.py)
 from __future__ import annotations
 
 import hashlib

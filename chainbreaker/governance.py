@@ -9,6 +9,7 @@ It intentionally does not depend on the current ledger, block header, or CLI.
 All operations are deterministic and work on plain data structures.
 """
 
+# CONSENSUS-CRITICAL: module-level consensus-sensitive code (governance.py)
 from __future__ import annotations
 
 from dataclasses import dataclass
