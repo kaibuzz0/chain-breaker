@@ -27,6 +27,8 @@ tokenomics, encrypted vaults, monetary settlement, or smart contracts.
 * Snapshots and restart/replay optimization.
 * Cross-language golden test vectors.
 * Independent Rust verifier for header hashing and registry-root calculation.
+  * Skeleton crate added under `rust-verifier/`.
+  * Requires a Rust toolchain (`cargo`) to build and test.
 * Consensus mutation testing.
 
 ## Not yet implemented
