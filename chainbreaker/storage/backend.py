@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Callable
 
@@ -17,63 +16,50 @@ from chainbreaker.registry_state import (
     serialize_registry_state,
 )
 
-from .filesystem import (
-    SingleWriterLock,
-    StorageIOError,
-    atomic_write,
-    safe_unlink,
-)
+from .filesystem import SingleWriterLock, StorageIOError, atomic_write, fsync_dir, safe_unlink
 from .formats import (
-    HEADER_LEN,
     JOURNAL_ABORT,
     JOURNAL_BEGIN,
+    JOURNAL_BLOCK_STAGED,
     JOURNAL_COMMIT,
-    decode_block_record,
-    decode_head,
+    JOURNAL_HEADER_STAGED,
+    JOURNAL_INDEX_STAGED,
+    JOURNAL_REGISTRY_STAGED,
     encode_block_record,
     encode_head,
 )
 from .journal import Journal
 
 
-class StorageBackend(ABC):
+class StorageBackend:
     """Abstract storage backend boundary."""
 
-    @abstractmethod
     def get_tip(self) -> dict[str, Any]:
-        """Return durable tip metadata (height, block_hash, ...)."""
+        raise NotImplementedError
 
-    @abstractmethod
-    def read_block(self, height: int) -> BlockV2:
-        """Return the block at the given height."""
-
-    @abstractmethod
     def read_header(self, height: int) -> bytes:
-        """Return the exact 149-byte canonical Header V2."""
+        raise NotImplementedError
 
-    @abstractmethod
+    def read_block(self, height: int) -> BlockV2:
+        raise NotImplementedError
+
     def append_block(self, block: BlockV2, previous_state: RegistryState) -> RegistryState:
-        """Commit a validated block atomically and return the resulting registry state."""
+        raise NotImplementedError
 
-    @abstractmethod
     def write_snapshot(self, height: int, state: RegistryState) -> None:
-        """Persist a full registry snapshot."""
+        raise NotImplementedError
 
-    @abstractmethod
     def read_snapshot(self, height: int) -> RegistryState | None:
-        """Load a verified registry snapshot, or None."""
+        raise NotImplementedError
 
-    @abstractmethod
     def put_archive_object(self, content_hash: str, data: bytes) -> None:
-        """Persist a content-addressed archive object."""
+        raise NotImplementedError
 
-    @abstractmethod
     def get_archive_object(self, content_hash: str) -> bytes:
-        """Return archive object bytes by content hash."""
+        raise NotImplementedError
 
-    @abstractmethod
     def close(self) -> None:
-        """Release resources."""
+        raise NotImplementedError
 
 
 class FlatFileStorageBackend(StorageBackend):
@@ -111,6 +97,9 @@ class FlatFileStorageBackend(StorageBackend):
         self.journal = Journal(self.journal_path, failpoint=self.failpoint)
         self._write_config()
 
+    def _fail(self, name: str) -> None:
+        self.failpoint(name)
+
     def _ensure_dirs(self) -> None:
         for sub in [
             "tmp",
@@ -142,47 +131,40 @@ class FlatFileStorageBackend(StorageBackend):
         return self.snapshots_dir / f"{height:010d}.state"
 
     def _archive_path(self, content_hash: str) -> Path:
-        return self.archive_dir / content_hash[:2] / content_hash[2:4] / content_hash
-
-    def _fail(self, name: str) -> None:
-        self.failpoint(name)
+        prefix1 = content_hash[:2]
+        prefix2 = content_hash[2:4]
+        return self.archive_dir / prefix1 / prefix2 / content_hash
 
     def get_tip(self) -> dict[str, Any]:
-
+        from .formats import decode_head
         if not self.head_path.exists():
-            return {
+            result: dict[str, Any] = {
                 "height": 0,
                 "block_hash": self.genesis_hash,
                 "network_id": self.network_id,
                 "genesis_hash": self.genesis_hash,
                 "format_version": self.STORAGE_FORMAT_VERSION,
             }
-        head_data: dict[str, Any] = decode_head(self.head_path.read_bytes())
-        return head_data
+            return result
+        result = decode_head(self.head_path.read_bytes())
+        return result
 
     def read_header(self, height: int) -> bytes:
+        from .formats import HEADER_LEN
         path = self._header_path(height)
         if not path.exists():
-            raise StorageIOError(f"missing header at height {height}")
+            raise StorageIOError(f"header not found at height {height}")
         data = path.read_bytes()
         if len(data) != HEADER_LEN:
-            raise StorageIOError(
-                f"header at height {height} has {len(data)} bytes, expected {HEADER_LEN}"
-            )
+            raise StorageIOError(f"header at height {height} has wrong length: {len(data)}")
         return data
 
     def read_block(self, height: int) -> BlockV2:
+        from .formats import decode_block_record
         path = self._block_path(height)
         if not path.exists():
-            raise StorageIOError(f"missing block at height {height}")
-        data = path.read_bytes()
-        block = decode_block_record(data)
-        header_hash = HashEngine.hash_double_hex(self.read_header(height))
-        if block.header.hash() != header_hash:
-            raise StorageIOError(
-                f"block at height {height} does not match stored header hash"
-            )
-        return block
+            raise StorageIOError(f"block not found at height {height}")
+        return decode_block_record(path.read_bytes())
 
     def append_block(
         self, block: BlockV2, previous_state: RegistryState
@@ -200,11 +182,6 @@ class FlatFileStorageBackend(StorageBackend):
         height = tip["height"] + 1
         if height <= 0:
             raise StorageIOError("cannot overwrite genesis via append_block")
-
-        if height != tip["height"] + 1:
-            raise StorageIOError(
-                f"append_block height {height} does not follow tip {tip['height']}"
-            )
 
         # Derive new registry state by replaying transactions.
         state = previous_state
@@ -234,40 +211,70 @@ class FlatFileStorageBackend(StorageBackend):
         self.journal.append(JOURNAL_BEGIN, height)
         self._fail("after_begin")
 
-        # 2. Stage artifacts
+        # 2. Stage header
         header_bytes = BinaryCodec.encode_header_v2(block.header.to_dict())
-        block_record = encode_block_record(block)
-        snapshot_bytes = serialize_registry_state(state)
-
-        self._fail("before_stage")
+        self._fail("before_header_stage")
         tmp_header = self.tmp_dir / f"header.{height:010d}"
-        tmp_block = self.tmp_dir / f"block.{height:010d}"
-        tmp_snapshot = self.tmp_dir / f"state.{height:010d}"
         atomic_write(tmp_header, header_bytes)
-        atomic_write(tmp_block, block_record)
-        if height % self.SNAPSHOT_INTERVAL == 0:
-            atomic_write(tmp_snapshot, snapshot_bytes)
-        self._fail("after_stage")
+        self._fail("after_header_stage")
+        self.journal.append(JOURNAL_HEADER_STAGED, height, header_bytes)
+        self._fail("after_header_staged_record")
 
-        # 3. Verify staged hashes
+        # 3. Stage block record
+        block_record = encode_block_record(block)
+        self._fail("before_block_stage")
+        tmp_block = self.tmp_dir / f"block.{height:010d}"
+        atomic_write(tmp_block, block_record)
+        self._fail("after_block_stage")
+        self.journal.append(JOURNAL_BLOCK_STAGED, height, block_record)
+        self._fail("after_block_staged_record")
+
+        # 4. Stage snapshot
+        snapshot_bytes = serialize_registry_state(state)
+        self._fail("before_registry_stage")
+        tmp_snapshot = self.tmp_dir / f"state.{height:010d}"
+        atomic_write(tmp_snapshot, snapshot_bytes)
+        self._fail("after_registry_stage")
+        self.journal.append(JOURNAL_REGISTRY_STAGED, height, snapshot_bytes)
+        self._fail("after_registry_staged_record")
+
+        # 5. Verify staged hashes
         if HashEngine.hash_double_hex(header_bytes) != block_hash:
             self.journal.append(JOURNAL_ABORT, height, b"header hash mismatch")
             raise StorageIOError("staged header hash does not match block hash")
 
-        # 4. Publish artifacts
+        # 6. Publish artifacts
         self._fail("before_publish")
+        self._fail("during_header_rename")
         atomic_write(self._header_path(height), tmp_header.read_bytes())
+        self._fail("after_header_publish")
+        self._fail("during_block_rename")
         atomic_write(self._block_path(height), tmp_block.read_bytes())
+        self._fail("after_block_publish")
         if (self.snapshots_dir / f"{height:010d}.state").exists() or height % self.SNAPSHOT_INTERVAL == 0:
             atomic_write(self._snapshot_path(height), snapshot_bytes)
+        self._fail("after_snapshot_publish")
+        self._fail("before_index_stage")
         self._update_indexes(height, block_hash)
+        self.journal.append(JOURNAL_INDEX_STAGED, height)
+        self._fail("after_index_stage")
         self._fail("after_publish")
 
-        # 5. COMMIT journal
+        # 7. fsync durability boundary
+        self._fail("before_fsync")
+        fsync_dir(self.headers_dir)
+        fsync_dir(self.blocks_dir)
+        fsync_dir(self.snapshots_dir)
+        fsync_dir(self.indexes_dir)
+        self._fail("after_fsync")
+
+        # 8. COMMIT journal
+        self._fail("before_commit")
         self.journal.append(JOURNAL_COMMIT, height)
+        self._fail("during_commit")
         self._fail("after_commit")
 
-        # 6. Update HEAD
+        # 9. Update HEAD
         self._fail("before_head_update")
         atomic_write(
             self.head_path,
@@ -280,6 +287,11 @@ class FlatFileStorageBackend(StorageBackend):
             ),
         )
         self._fail("after_head_update")
+
+        # 10. Directory sync
+        self._fail("before_dir_sync")
+        fsync_dir(self.chain_root)
+        self._fail("after_dir_sync")
 
         # Clean up tmp files
         safe_unlink(tmp_header)
