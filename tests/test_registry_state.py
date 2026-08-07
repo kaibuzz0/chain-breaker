@@ -85,11 +85,14 @@ def test_empty_state_root_in_fresh_process():
 from chainbreaker.registry_state import RegistryState, registry_root
 print(registry_root(RegistryState.empty()))
 """
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     result = subprocess.run(
         [sys.executable, "-c", script],
         capture_output=True,
         text=True,
         cwd=os.path.dirname(__file__),
+        env=env,
     )
     assert result.returncode == 0
     root1 = registry_root(RegistryState.empty())

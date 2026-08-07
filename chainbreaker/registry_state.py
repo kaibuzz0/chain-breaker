@@ -229,6 +229,98 @@ def serialize_registry_state(state: RegistryState) -> bytes:
     return b"".join(parts)
 
 
+def _decode_varint(data: bytes, offset: int) -> tuple[int, int]:
+    if offset >= len(data):
+        raise RegistryError("varint truncated")
+    first = data[offset]
+    if first < 0xFD:
+        return first, offset + 1
+    if first == 0xFD:
+        return int.from_bytes(data[offset + 1 : offset + 3], "little"), offset + 3
+    if first == 0xFE:
+        return int.from_bytes(data[offset + 1 : offset + 5], "little"), offset + 5
+    if first == 0xFF:
+        return int.from_bytes(data[offset + 1 : offset + 9], "little"), offset + 9
+    raise RegistryError("invalid varint marker")
+
+
+def _decode_bytes(data: bytes, offset: int) -> tuple[bytes, int]:
+    length, offset = _decode_varint(data, offset)
+    if offset + length > len(data):
+        raise RegistryError("bytes truncated")
+    return data[offset : offset + length], offset + length
+
+
+def _decode_str(data: bytes, offset: int) -> tuple[str, int]:
+    raw, offset = _decode_bytes(data, offset)
+    return raw.decode("utf-8"), offset
+
+
+def _deserialize_record(data: bytes, offset: int) -> tuple[CuratorRecord, int]:
+    schema_version = int.from_bytes(data[offset : offset + 4], "little")
+    offset += 4
+    if schema_version != GOVERNANCE_SCHEMA_VERSION:
+        raise RegistryError(f"record schema version {schema_version} unsupported")
+    curator_id, offset = _decode_str(data, offset)
+    public_key_hex = data[offset : offset + 32].hex()
+    offset += 32
+    activation_height = int.from_bytes(data[offset : offset + 8], "little")
+    offset += 8
+    revocation_raw = int.from_bytes(data[offset : offset + 8], "little")
+    offset += 8
+    revocation_height = None if revocation_raw == 0xFFFFFFFFFFFFFFFF else revocation_raw
+    previous_raw = data[offset : offset + 32]
+    offset += 32
+    previous_key_hex = previous_raw.hex() if previous_raw != bytes(32) else None
+    registration_txid = data[offset : offset + 32].hex()
+    offset += 32
+    latest_raw = data[offset : offset + 32]
+    offset += 32
+    latest_rotation_txid = latest_raw.hex() if latest_raw != bytes(32) else None
+    return CuratorRecord(
+        curator_id=curator_id,
+        public_key_hex=public_key_hex,
+        activation_height=activation_height,
+        revocation_height=revocation_height,
+        previous_key_hex=previous_key_hex,
+        registration_txid=registration_txid,
+        latest_rotation_txid=latest_rotation_txid,
+    ), offset
+
+
+def deserialize_registry_state(data: bytes) -> RegistryState:
+    """Parse canonical registry-state bytes back into a RegistryState."""
+    if len(data) < 4:
+        raise RegistryError("state data too short")
+    offset = 0
+    governance_version = int.from_bytes(data[offset : offset + 4], "little")
+    offset += 4
+    if governance_version != GOVERNANCE_SCHEMA_VERSION:
+        raise RegistryError(f"state schema version {governance_version} unsupported")
+    network_id, offset = _decode_str(data, offset)
+    key_count, offset = _decode_varint(data, offset)
+    if offset + key_count * 32 > len(data):
+        raise RegistryError("governance keys truncated")
+    governance_keys = tuple(data[offset + i * 32 : offset + (i + 1) * 32].hex() for i in range(key_count))
+    offset += key_count * 32
+    threshold = data[offset]
+    offset += 1
+    record_count, offset = _decode_varint(data, offset)
+    records: list[CuratorRecord] = []
+    for _ in range(record_count):
+        record, offset = _deserialize_record(data, offset)
+        records.append(record)
+    if offset != len(data):
+        raise RegistryError(f"trailing bytes after state deserialization: {len(data) - offset}")
+    return RegistryState(
+        records=tuple(records),
+        governance_version=governance_version,
+        network_id=network_id,
+        governance_keys=governance_keys,
+        threshold=threshold,
+    )
+
+
 def _serialize_record(record: CuratorRecord) -> bytes:
     parts = []
     parts.append(GOVERNANCE_SCHEMA_VERSION.to_bytes(4, "little"))
