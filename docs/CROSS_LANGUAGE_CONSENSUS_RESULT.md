@@ -6,9 +6,9 @@
 |------|-------|
 | Rust verifier branch | `phase7c-independent-rust-verifier` |
 | Post-merge hotfix branch | `phase7c-rust-verifier-fix` |
-| Pull request | https://github.com/kaibuzz0/chain-breaker/pull/21 |
+| Pull requests | https://github.com/kaibuzz0/chain-breaker/pull/19, https://github.com/kaibuzz0/chain-breaker/pull/21, https://github.com/kaibuzz0/chain-breaker/pull/22 |
 | Base commit | `822b86ccb807db8d198e60085215c324d46aea4f` |
-| Final hotfix commit | `3bd625507794779acc7e2bece75f04353de15e7e` |
+| Final merge commit | `4ae562588f937d3fc451b391960f2cc9eb0cef0b` |
 
 ## Rust toolchain (GitHub Actions canonical build)
 
@@ -121,12 +121,12 @@ A second CI run failed `cargo fmt --check` due to a trailing blank line at the
 end of `src/lib.rs`. Classification: **Rust implementation bug / formatting**
 (#1). Fixed by removing the trailing blank line.
 
-After both fixes, the Rust Verifier CI workflow completed successfully:
+After the initial compile/type fix, the trailing-newline format fix, and the relative vector-path fix, the Rust Verifier CI workflow completed successfully on `main`:
 
-- `cargo fmt --check` passed
-- `cargo clippy --all-targets --all-features -- -D warnings` passed
-- `cargo test` passed
-- `cargo run -- verify test-vectors` passed all implemented vectors
+- `cargo fmt --check` passed on `ubuntu-latest`
+- `cargo clippy --manifest-path rust-verifier/Cargo.toml --all-targets --all-features -- -D warnings` passed
+- `cargo test --manifest-path rust-verifier/Cargo.toml --verbose` passed
+- `cargo run --manifest-path rust-verifier/Cargo.toml -- verify test-vectors` reported `passed=11 failed=0`
 
 No frozen vector values were changed to make the Rust implementation match.
 
@@ -167,3 +167,9 @@ No.
 ## Did any frozen vector files change?
 
 No.
+
+## Final CI status on main
+
+- `CI` workflow: success
+- `Rust Verifier CI` workflow: success
+- Merge commit: `4ae562588f937d3fc451b391960f2cc9eb0cef0b`
