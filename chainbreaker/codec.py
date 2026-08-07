@@ -7,6 +7,7 @@
 - Transaction schema validation
 """
 
+# CONSENSUS-CRITICAL: module-level consensus-sensitive code (codec.py)
 from __future__ import annotations
 
 import json

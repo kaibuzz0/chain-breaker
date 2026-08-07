@@ -45,6 +45,7 @@ MAX_RETARGET_FACTOR = 4
 
 def _canonical_txid(body_dict: dict[str, Any]) -> str:
     """Return a deterministic transaction ID with canonical signature ordering."""
+# CONSENSUS-CRITICAL: module-level consensus-sensitive code (chain.py)
     canonical_body = dict(body_dict)
     if "governance_signatures" in canonical_body:
         canonical_body["governance_signatures"] = sorted(

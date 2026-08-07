@@ -43,6 +43,7 @@ GENESIS_HEADER_BYTES = bytes.fromhex("020200000000000000000000000000000000000000
 
 def header_bytes(header: dict[str, Any]) -> bytes:
     """Canonical serialization of a block header."""
+# CONSENSUS-CRITICAL: module-level consensus-sensitive code (block.py)
     return BinaryCodec.encode_header(header)
 
 
