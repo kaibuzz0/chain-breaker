@@ -8,7 +8,12 @@ fn main() {
         eprintln!("Usage: chainbreaker-v2-verifier verify <test-vectors-dir>");
         std::process::exit(2);
     }
-    let vectors_dir = PathBuf::from(&args[2]);
+    let mut vectors_dir = PathBuf::from(&args[2]);
+    if vectors_dir.is_relative() {
+        if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
+            vectors_dir = PathBuf::from(manifest_dir).join(vectors_dir);
+        }
+    }
     match run_all(&vectors_dir) {
         Ok(summary) => {
             println!("{}: {}", summary, vectors_dir.display());
