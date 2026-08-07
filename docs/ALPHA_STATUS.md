@@ -18,7 +18,7 @@ This document is a concise status page for the **v2.0.0-alpha** milestone. It te
 Frozen items require an ADR and a protocol/API version bump to change:
 
 1. Header v2 field order and canonical encoding.
-2. SHA-256 block hashing.
+2. SHA-256d (`SHA256(SHA256(...))`) block hashing.
 3. Registry governance reducer transitions.
 4. CLI command names and argument semantics listed in `docs/adr/003-cli-api-freeze.md`.
 5. Library API surface listed in `docs/adr/003-cli-api-freeze.md`.

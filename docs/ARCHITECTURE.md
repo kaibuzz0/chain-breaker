@@ -51,10 +51,10 @@ A layer must never import from a layer above it. Circular dependencies between s
 
 ### Invariants
 
-1. A block hash is `SHA-256(canonical(header))`.
+1. A block hash is `SHA-256d(canonical(header))` where `SHA-256d(x) = SHA256(SHA256(x))`.
 2. Header field order is fixed for all time for Protocol v2.
 3. Genesis block is deterministic given a seed registry and timestamp.
-4. Proof-of-work target is a 256-bit threshold; a valid block satisfies `int(hash) < target`.
+4. Proof-of-work target is a 256-bit threshold; a valid block satisfies `int(hash) <= target`.
 
 ### Extension points
 

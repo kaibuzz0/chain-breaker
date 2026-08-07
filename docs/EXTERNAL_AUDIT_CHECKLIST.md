@@ -14,12 +14,12 @@ This checklist is the basis for an independent review of the Chain-Breaker alpha
 - [ ] Every Header v2 field has a fixed serialization order.
 - [ ] Length prefixes are always 4 bytes big-endian unsigned.
 - [ ] Decoding rejects extra bytes, missing bytes, and out-of-order fields.
-- [ ] All integer fields use fixed-width big-endian encoding.
+- [ ] All integer fields use fixed-width little-endian encoding; PoW hash interpretation uses big-endian.
 
 ## 3. Cryptographic correctness
 
-- [ ] Block hashes use SHA-256 of canonical header bytes.
-- [ ] Curator signatures use secp256k1 over canonical action payloads.
+- [ ] Block hashes use SHA-256d (`SHA256(SHA256(canonical_header_bytes))`) of canonical header bytes.
+- [ ] Curator and governance signatures use Ed25519 over canonical action payloads.
 - [ ] Public-key recovery/validation rejects invalid or malformed keys.
 - [ ] Private keys are never logged, serialized, or transmitted by the CLI.
 
