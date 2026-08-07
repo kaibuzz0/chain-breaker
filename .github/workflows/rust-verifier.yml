@@ -1,0 +1,40 @@
+name: Rust Verifier CI
+
+on:
+  push:
+    branches: [main, phase7c-independent-rust-verifier]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rust-verifier:
+    name: Build and verify Rust V2 verifier
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Print Rust toolchain info
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: Check formatting
+        run: cargo fmt --manifest-path rust-verifier/Cargo.toml -- --check
+
+      - name: Run clippy
+        run: cargo clippy --manifest-path rust-verifier/Cargo.toml --all-targets --all-features -- -D warnings
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path rust-verifier/Cargo.toml --verbose
+
+      - name: Run Rust verifier against frozen vectors
+        run: cargo run --manifest-path rust-verifier/Cargo.toml -- verify test-vectors
+
+      - name: Generate Cargo.lock
+        run: cargo generate-lockfile --manifest-path rust-verifier/Cargo.toml
