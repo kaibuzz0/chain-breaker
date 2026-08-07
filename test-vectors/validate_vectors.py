@@ -15,9 +15,10 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 from chainbreaker.codec import BinaryCodec
-from chainbreaker.block import create_genesis_block, target_to_hex, satisfies_pow, MAX_TARGET
+from chainbreaker.block import create_genesis_block, target_to_hex, hex_to_target, satisfies_pow, MAX_TARGET
 from chainbreaker.crypto import HashEngine, encode_public_key, sign, verify, decode_public_key, decode_private_key
-from chainbreaker.registry_state import RegistryState, registry_root, serialize_registry_state, apply_registry_transaction, CuratorRegisterTx, GovernanceContext
+from chainbreaker.registry_state import RegistryState, registry_root, apply_registry_transaction, CuratorRegisterTx, CuratorRotateTx, CuratorRevokeTx, GovernanceContext
+from chainbreaker.governance import governance_message
 from chainbreaker.crypto import MerkleTree
 
 NETWORK_ID = "chainbreaker-scripture-v2"
@@ -66,6 +67,15 @@ def run():
     except Exception:
         pass
 
+    extra = hdr["vectors"][3]
+    if extra["canonical_bytes_length"] != 150:
+        failures.append("trailing header length not 150")
+    try:
+        BinaryCodec.decode_header_v2(bytes.fromhex(extra["canonical_bytes_hex"]), strict=True)
+        failures.append("trailing header should fail decode")
+    except Exception:
+        pass
+
     # 2. Genesis
     with open(vectors_dir / "genesis.json") as f:
         gen = json.load(f)
@@ -93,6 +103,9 @@ def run():
     assert_eq("max target LE", powv["max_target_integer"].to_bytes(32, "little").hex(), powv["max_target_hex_le"])
     if not (powv["min_target_integer"] <= powv["max_target_integer"]):
         failures.append("min target > max target")
+    for neg in powv.get("negative_vectors", []):
+        if satisfies_pow(neg["block_hash_hex"], hex_to_target(neg["target_hex"])):
+            failures.append("PoW negative should fail")
 
     # 5. Merkle
     with open(vectors_dir / "merkle.json") as f:
@@ -106,7 +119,7 @@ def run():
         gov = json.load(f)
     pos = gov["vectors"][0]
     tx = CuratorRegisterTx.from_dict(pos["input"])
-    body_without_witness = {k: v for k, v in pos["input"].items() if k != "governance_signatures"}
+    body_without_witness = {k: v for k, v in pos["input"].items() if k not in ("governance_signatures",)}
     expected_msg = HashEngine.hash_object({
         "network_id": NETWORK_ID,
         "version": PROTOCOL_VERSION,
@@ -133,6 +146,50 @@ def run():
         failures.append("governance negative should fail apply")
     except Exception:
         pass
+
+    # 6b. Governance rotate/revoke
+    with open(vectors_dir / "governance-rotate-revoke.json") as f:
+        gov_rr = json.load(f)
+    for vec in gov_rr["vectors"]:
+        if vec["action"] == "curator_register":
+            continue  # handled in governance-register.json; includes wrong-network negative that passes from_dict
+        tx_cls = {"curator_register": CuratorRegisterTx, "curator_rotate": CuratorRotateTx, "curator_revoke": CuratorRevokeTx}[vec["action"]]
+        if not vec["expected_validity"]:
+            try:
+                tx_cls.from_dict(vec["input"])
+                failures.append(f"{vec['action']} negative should fail from_dict")
+            except Exception:
+                pass
+            continue
+        body_without_witness = {k: v for k, v in vec["input"].items() if k not in ("governance_signatures", "curator_signature")}
+        expected_msg = HashEngine.hash_object({
+            "network_id": NETWORK_ID,
+            "version": PROTOCOL_VERSION,
+            "type": "registry",
+            "body_hash": HashEngine.hash_object_hex(body_without_witness),
+        })
+        tx = tx_cls.from_dict(vec["input"])
+        for sig in tx.governance_signatures:
+            pk = decode_public_key(gov_rr["governance_keys"][sig.key_index])
+            if not verify(pk, expected_msg, sig.signature_hex):
+                failures.append(f"{vec['action']} signature {sig.key_index} invalid")
+        assert_eq(f"{vec['action']} body_hash", HashEngine.hash_object_hex(vec["input"]), vec["body_hash"])
+        if vec["action"] == "curator_rotate":
+            st = apply_registry_transaction(base_state, CuratorRegisterTx.from_dict(gov["vectors"][0]["input"]), 1, gov["vectors"][0]["body_hash"], gctx)
+            applied = apply_registry_transaction(st, tx, 2, vec["body_hash"], gctx)
+            assert_eq(f"{vec['action']} root after", registry_root(applied), vec["expected_registry_root_after"])
+        elif vec["action"] == "curator_revoke":
+            st = apply_registry_transaction(base_state, CuratorRegisterTx.from_dict(gov["vectors"][0]["input"]), 1, gov["vectors"][0]["body_hash"], gctx)
+            st = apply_registry_transaction(st, CuratorRotateTx.from_dict(gov_rr["vectors"][0]["input"]), 2, gov_rr["vectors"][0]["body_hash"], gctx)
+            applied = apply_registry_transaction(st, tx, 3, vec["body_hash"], gctx)
+            assert_eq(f"{vec['action']} root after", registry_root(applied), vec["expected_registry_root_after"])
+
+    # 7a. Merkle extra cases
+    with open(vectors_dir / "merkle-extra.json") as f:
+        merkle_extra = json.load(f)
+    for v in merkle_extra["vectors"]:
+        mtree = MerkleTree([bytes.fromhex(h) for h in v["leaves_hex"]])
+        assert_eq(f"merkle-extra {v['leaf_count']}", mtree.root.hex(), v["expected_root_hex"])
 
     # 7. Registry state
     with open(vectors_dir / "registry-state.json") as f:
