@@ -1,6 +1,6 @@
 use chainbreaker_v2_verifier::*;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -21,7 +21,7 @@ fn main() {
     }
 }
 
-fn run_all(dir: &PathBuf) -> Result<String, VerifyError> {
+fn run_all(dir: &Path) -> Result<String, VerifyError> {
     let mut passed = 0usize;
     let mut failed = 0usize;
 
@@ -55,22 +55,25 @@ fn run_all(dir: &PathBuf) -> Result<String, VerifyError> {
     Ok(format!("passed={} failed={}", passed, failed))
 }
 
-fn load_json(dir: &PathBuf, name: &str) -> Result<serde_json::Value, VerifyError> {
+fn load_json(dir: &Path, name: &str) -> Result<serde_json::Value, VerifyError> {
     let path = dir.join(name);
     let text = fs::read_to_string(&path)?;
     Ok(serde_json::from_str(&text)?)
 }
 
-fn load_bytes(dir: &PathBuf, name: &str) -> Result<Vec<u8>, VerifyError> {
+fn load_bytes(dir: &Path, name: &str) -> Result<Vec<u8>, VerifyError> {
     Ok(fs::read(dir.join(name))?)
 }
 
-fn as_array(v: &serde_json::Value, context: &str) -> Result<&Vec<serde_json::Value>, VerifyError> {
+fn as_array<'a>(
+    v: &'a serde_json::Value,
+    context: &'a str,
+) -> Result<&'a Vec<serde_json::Value>, VerifyError> {
     v.as_array()
         .ok_or_else(|| VerifyError::Protocol(format!("{}: expected array", context)))
 }
 
-fn check_header_v2(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_header_v2(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "header-v2.json")?;
     for v in as_array(
         val.get("vectors")
@@ -117,7 +120,7 @@ fn check_header_v2(dir: &PathBuf) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn check_genesis(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_genesis(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "genesis.json")?;
     let bin = load_bytes(dir, "genesis.bin")?;
     expect_hex(
@@ -154,7 +157,7 @@ fn check_genesis(dir: &PathBuf) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn check_sha256d(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_sha256d(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "sha256d.json")?;
     let input = hex::decode(
         val["input_hex"]
@@ -176,7 +179,7 @@ fn check_sha256d(dir: &PathBuf) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn check_pow(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_pow(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "pow-target.json")?;
     let expected_be = val["max_target_hex_be"]
         .as_str()
@@ -226,7 +229,7 @@ fn check_pow(dir: &PathBuf) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn check_merkle(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_merkle(dir: &Path) -> Result<(), VerifyError> {
     for name in ["merkle.json", "merkle-extra.json"] {
         let val = load_json(dir, name)?;
         if let Some(leaves_hex) = val.get("leaves_hex").and_then(|x| x.as_array()) {
@@ -276,7 +279,7 @@ fn check_merkle(dir: &PathBuf) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn check_registry_state(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_registry_state(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "registry-state.json")?;
     let bin = load_bytes(dir, "registry-state.bin")?;
     expect_hex(
@@ -301,7 +304,7 @@ fn check_registry_state(dir: &PathBuf) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn check_governance_register(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_governance_register(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "governance-register.json")?;
     let gov_keys: Vec<String> = as_array(
         &val["vectors"].as_array().unwrap()[0]["governance_keys"],
@@ -326,7 +329,7 @@ fn check_governance_register(dir: &PathBuf) -> Result<(), VerifyError> {
         });
         if ok != should_pass {
             return Err(VerifyError::Protocol(format!(
-                "governance-register "{}" expected validity {} but got {}",
+                "governance-register [{}] expected validity {} but got {}",
                 v["description"].as_str().unwrap_or(""),
                 should_pass,
                 ok
@@ -336,7 +339,7 @@ fn check_governance_register(dir: &PathBuf) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn check_governance_rotate_revoke(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_governance_rotate_revoke(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "governance-rotate-revoke.json")?;
     let gov_keys: Vec<String> = as_array(&val["governance_keys"], "governance_keys")?
         .iter()
@@ -361,7 +364,7 @@ fn check_governance_rotate_revoke(dir: &PathBuf) -> Result<(), VerifyError> {
         });
         if ok != should_pass {
             return Err(VerifyError::Protocol(format!(
-                "governance-rotate-revoke "{}" expected validity {} but got {}",
+                "governance-rotate-revoke [{}] expected validity {} but got {}",
                 v["description"].as_str().unwrap_or(""),
                 should_pass,
                 ok
@@ -371,38 +374,50 @@ fn check_governance_rotate_revoke(dir: &PathBuf) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn check_attestation(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_attestation(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "attestation-v2.json")?;
     for v in as_array(&val["vectors"], "attestation vectors")? {
-        let preimage = build_attestation_preimage(
-            v["network_id"]
-                .as_str()
-                .ok_or_else(|| VerifyError::Protocol("missing network_id".into()))?,
-            v["protocol_version"].as_u64().unwrap_or(0) as u32,
-            v["manifest_hash"]
-                .as_str()
-                .ok_or_else(|| VerifyError::Protocol("missing manifest_hash".into()))?,
-            v["curator_id"]
-                .as_str()
-                .ok_or_else(|| VerifyError::Protocol("missing curator_id".into()))?,
-            v["block_height"].as_u64().unwrap_or(0),
-        );
-        let msg = hash_object(&preimage);
+        let expected_validity = v["expected_validity"].as_bool().unwrap_or(false);
         let pk = v["curator_public_key_hex"]
             .as_str()
             .ok_or_else(|| VerifyError::Protocol("missing curator_public_key_hex".into()))?;
         let sig = v["expected_signature_hex"]
             .as_str()
             .ok_or_else(|| VerifyError::Protocol("missing expected_signature_hex".into()))?;
-        let should_pass = v["expected_validity"]
-            .as_bool()
-            .ok_or_else(|| VerifyError::Protocol("missing expected_validity".into()))?;
-        let ok = verify_ed25519(pk, &msg, sig).is_ok();
-        if ok != should_pass {
+
+        // Verify the signature over the supplied signed preimage (if present) or over the
+        // recomputed canonical preimage.
+        let preimage_text = v["signed_preimage"].as_str();
+        let msg: [u8; HASH_LEN] = if let Some(text) = preimage_text {
+            sha256_single(text.as_bytes())
+        } else {
+            let preimage = build_attestation_preimage(
+                v["network_id"]
+                    .as_str()
+                    .ok_or_else(|| VerifyError::Protocol("missing network_id".into()))?,
+                v["protocol_version"].as_u64().unwrap_or(0) as u32,
+                v["manifest_hash"]
+                    .as_str()
+                    .ok_or_else(|| VerifyError::Protocol("missing manifest_hash".into()))?,
+                v["curator_id"]
+                    .as_str()
+                    .ok_or_else(|| VerifyError::Protocol("missing curator_id".into()))?,
+                v["block_height"].as_u64().unwrap_or(0),
+            );
+            hash_object(&preimage)
+        };
+        let crypto_ok = verify_ed25519(pk, &msg, sig).is_ok();
+
+        // Some negative vectors are cryptographically valid but semantically invalid
+        // (e.g. attestation after revocation). The vector records this in expected_error.
+        let semantic_error = v["expected_error"].as_str().unwrap_or("");
+        let semantic_fail = !semantic_error.is_empty();
+        let ok = crypto_ok && !semantic_fail;
+        if ok != expected_validity {
             return Err(VerifyError::Protocol(format!(
-                "attestation "{}" expected validity {} but got {}",
+                "attestation [{}] expected validity {} but got {}",
                 v["description"].as_str().unwrap_or(""),
-                should_pass,
+                expected_validity,
                 ok
             )));
         }
@@ -410,7 +425,7 @@ fn check_attestation(dir: &PathBuf) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn check_ed25519(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_ed25519(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "ed25519.json")?;
     let pk = val["public_key_hex"]
         .as_str()
@@ -435,7 +450,7 @@ fn check_ed25519(dir: &PathBuf) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn check_block(dir: &PathBuf) -> Result<(), VerifyError> {
+fn check_block(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "block.json")?;
     let header = parse_header_from_dict(&val["block_dict"]["header"])?;
     let encoded = header.encode();
