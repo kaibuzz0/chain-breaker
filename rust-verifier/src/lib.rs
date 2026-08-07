@@ -1,7 +1,6 @@
 use ed25519_dalek::{Signature, VerifyingKey};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::io;
 use thiserror::Error;
@@ -33,17 +32,16 @@ pub enum VerifyError {
     },
 }
 
-pub type Result<T> = std::result::Result<T, VerifyError>;
+pub type Result<T, E = VerifyError> = std::result::Result<T, E>;
 
 pub fn double_sha256(data: &[u8]) -> [u8; HASH_LEN] {
     let first = Sha256::digest(data);
-    let second = Sha256::digest(&first);
+    let second = Sha256::digest(first);
     second.into()
 }
 
 pub fn sha256_single(data: &[u8]) -> [u8; HASH_LEN] {
-    let digest = Sha256::digest(data);
-    digest.into()
+    Sha256::digest(data).into()
 }
 
 fn copy_hash(data: &[u8], offset: &mut usize) -> Result<[u8; HASH_LEN]> {
@@ -128,14 +126,7 @@ impl HeaderV2 {
 }
 
 pub fn u256_le(a: &[u8; HASH_LEN], b: &[u8; HASH_LEN]) -> bool {
-    for i in 0..HASH_LEN {
-        match a[i].cmp(&b[i]) {
-            std::cmp::Ordering::Less => return true,
-            std::cmp::Ordering::Greater => return false,
-            std::cmp::Ordering::Equal => continue,
-        }
-    }
-    true
+    a <= b
 }
 
 pub fn target_from_hex(hex: &str) -> Result<[u8; HASH_LEN]> {
@@ -176,6 +167,10 @@ pub fn merkle_root(leaves: &[[u8; HASH_LEN]]) -> [u8; HASH_LEN] {
     level[0]
 }
 
+fn escape_json(s: &str) -> String {
+    serde_json::to_string(s).unwrap_or_else(|_| format!("\"{}\"", s))
+}
+
 fn canonical_json(value: &Value) -> String {
     match value {
         Value::Object(map) => {
@@ -198,13 +193,8 @@ fn canonical_json(value: &Value) -> String {
     }
 }
 
-fn escape_json(s: &str) -> String {
-    serde_json::to_string(s).unwrap_or_else(|_| format!("\"{}\"", s))
-}
-
 pub fn hash_object(value: &Value) -> [u8; HASH_LEN] {
-    let canonical = canonical_json(value);
-    sha256_single(canonical.as_bytes())
+    sha256_single(canonical_json(value).as_bytes())
 }
 
 pub fn hash_object_hex(value: &Value) -> String {
@@ -231,7 +221,7 @@ pub fn build_attestation_preimage(
     curator_id: &str,
     block_height: u64,
 ) -> Value {
-    let mut map = BTreeMap::new();
+    let mut map = serde_json::Map::new();
     map.insert(
         "network_id".to_string(),
         Value::String(network_id.to_string()),

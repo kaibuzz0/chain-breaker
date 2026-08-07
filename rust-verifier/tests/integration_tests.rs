@@ -24,8 +24,6 @@ fn header_v2_roundtrip() {
 fn sha256d_known() {
     let data = b"hello";
     let got = double_sha256(data);
-    let expected = hex::decode("9f7b4e2e70d6a51a9d4b6e4c0c3a5e8f6d1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6")
-        .unwrap_or_default();
     // We only verify shape here; exact vectors are in vector_tests.
     assert_eq!(got.len(), 32);
 }
