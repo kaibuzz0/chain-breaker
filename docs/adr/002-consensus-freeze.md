@@ -35,7 +35,7 @@ Freezing consensus first means that networking and storage teams can build again
 ## Invariants that must never change
 
 1. A valid block's hash satisfies the target.
-2. A block's `registry_root` is the SHA-256 of the canonical serialized registry state after applying that block's actions.
+2. A block's `registry_root` is the SHA-256 of the canonical serialized registry state *before* applying that block's actions; the post-block state is used for the next block's commitment.
 3. Curator `register` requires a valid public key and self-signature.
 4. Curator `rotate` requires the old key's signature and the new key.
 5. Curator `revoke` permanently removes the curator from the active set.

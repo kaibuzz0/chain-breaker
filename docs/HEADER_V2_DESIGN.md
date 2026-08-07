@@ -1,7 +1,7 @@
 # Header v2 Design: Registry Root Integration
 
 Version: `chainbreaker-scripture-v2`  
-Status: **design-only milestone; no implementation yet**
+Status: **implemented and frozen at v2.0.0-alpha**
 
 This document specifies how the `registry_root` commitment is added to block
 headers.  It is the canonical design that the next implementation milestone

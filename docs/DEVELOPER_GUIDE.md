@@ -22,7 +22,7 @@ docs/               — design and operational docs
 ## Development setup
 
 ```bash
-python -m venv .venv
+pytchainbreaker v2 -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install -e .[dev]
 ```
@@ -36,10 +36,10 @@ pytest -v
 For CI-parity on Windows, use the full workflow:
 
 ```bash
-python -m pytest -v
-python -m ruff check chainbreaker tests
-python -m mypy chainbreaker
-python -m bandit -r chainbreaker
+pytchainbreaker v2 -m pytest -v
+pytchainbreaker v2 -m ruff check chainbreaker tests
+pytchainbreaker v2 -m mypy chainbreaker
+pytchainbreaker v2 -m bandit -r chainbreaker
 pip-audit
 ```
 
@@ -75,7 +75,7 @@ CLI -> Archive -> Registry -> Consensus
 - Prefer invariants over snapshot assertions.
 - Use `tmp_path` for filesystem tests; never touch `~/.hermes` or real home directories.
 - Adversarial tests should mutate one canonical field at a time and assert rejection.
-- Deterministic tests must pass on Python 3.10, 3.11, and 3.12.
+- Deterministic tests must pass on Pytchainbreaker v2 3.10, 3.11, and 3.12.
 
 ## Security code review checklist
 

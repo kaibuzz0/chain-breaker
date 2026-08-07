@@ -1,7 +1,7 @@
 # Proof-of-Work v2 Specification
 
 Version: `chainbreaker-scripture-v2`  
-Status: **design-only; no implementation changes**
+Status: **implemented and frozen at v2.0.0-alpha**
 
 ---
 

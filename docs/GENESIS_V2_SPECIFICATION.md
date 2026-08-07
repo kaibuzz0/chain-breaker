@@ -1,7 +1,7 @@
 # Genesis v2 Specification
 
 Version: `chainbreaker-scripture-v2`  
-Status: **design-only; no implementation yet**
+Status: **implemented and frozen at v2.0.0-alpha**
 
 This document defines the exact genesis block and registry state for the
 Chain-Breaker v2 network.  The genesis block is the constitutional root of the

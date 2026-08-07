@@ -17,7 +17,7 @@ Out of scope: networking, distributed operation, storage backends, replication, 
 
 - Has shell access to the machine running `hon`.
 - Can read and write files in the working directory.
-- Cannot break SHA-256, secp256k1, or the host OS without additional privileges.
+- Cannot break SHA-256, Ed25519, or the host OS without additional privileges.
 
 ### Actor B — Malformed input supplier
 
@@ -85,7 +85,7 @@ Out of scope: networking, distributed operation, storage backends, replication, 
 1. The operator keeps curator private keys confidential.
 2. The host OS provides filesystem permissions and randomness.
 3. SHA-256 remains collision-resistant and preimage-resistant.
-4. secp256k1 signatures remain unforgeable.
+4. Ed25519 signatures remain unforgeable.
 5. Python's standard library cryptographic primitives are correctly implemented.
 
 ## Future mitigations

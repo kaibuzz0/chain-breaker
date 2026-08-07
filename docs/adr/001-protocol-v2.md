@@ -17,11 +17,12 @@ Chain-Breaker needs an unambiguous, deterministic serialization format so that:
 Protocol v2 uses a flat, ordered, length-prefixed canonical encoding:
 
 - Every header field is serialized in a fixed order.
-- All integers are big-endian unsigned fixed-width.
-- All byte sequences are length-prefixed with a 4-byte big-endian length.
-- No implicit padding, no variable-length integers, no platform-dependent types.
+- Multi-byte integers are little-endian unsigned fixed-width.
+- Hash fields are 32 raw bytes (not length-prefixed) inside the 149-byte header.
+- No implicit padding, no platform-dependent types.
 
-The block hash is `SHA-256(canonical(header_bytes))`.
+The block hash is `SHA-256d(canonical(header_bytes))`, where
+`SHA-256d(x) = SHA256(SHA256(x))`.
 
 ## Rationale
 
@@ -39,7 +40,7 @@ Canonical serialization removes a common source of consensus failure: two implem
 ## Invariants that must never change
 
 1. Field order in Header v2 is fixed.
-2. Hash algorithm is SHA-256.
+2. Hash algorithm for block headers and Merkle trees is SHA-256d (`SHA256(SHA256(x))`).
 3. Length prefix width is 4 bytes, big-endian unsigned.
 4. `prev_hash` of the genesis block is 32 zero bytes.
 
