@@ -1,3 +1,4 @@
+# CONSENSUS-CRITICAL: Protocol V2 consensus-sensitive code. Changes require review per docs/CONSENSUS_CHANGE_POLICY.md.
 """Governance transaction models for curator registry state changes.
 
 This module implements the protocol-v2 registry governance transactions:
@@ -9,7 +10,6 @@ It intentionally does not depend on the current ledger, block header, or CLI.
 All operations are deterministic and work on plain data structures.
 """
 
-# CONSENSUS-CRITICAL: module-level consensus-sensitive code (governance.py)
 from __future__ import annotations
 
 from dataclasses import dataclass

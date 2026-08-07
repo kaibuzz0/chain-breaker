@@ -1,3 +1,4 @@
+# CONSENSUS-CRITICAL: Protocol V2 consensus-sensitive code. Changes require review per docs/CONSENSUS_CHANGE_POLICY.md.
 
 """Canonical binary codec and transaction validation.
 
@@ -7,7 +8,6 @@
 - Transaction schema validation
 """
 
-# CONSENSUS-CRITICAL: module-level consensus-sensitive code (codec.py)
 from __future__ import annotations
 
 import json

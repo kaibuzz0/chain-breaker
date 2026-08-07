@@ -1,3 +1,4 @@
+# CONSENSUS-CRITICAL: Protocol V2 consensus-sensitive code. Changes require review per docs/CONSENSUS_CHANGE_POLICY.md.
 """Deterministic ledger-derived curator registry state.
 
 This module is deliberately isolated from the block header, chain admission,
@@ -14,7 +15,6 @@ All functions are deterministic and have no filesystem, network, wall-clock,
 or random dependencies.
 """
 
-# CONSENSUS-CRITICAL: module-level consensus-sensitive code (registry_state.py)
 from __future__ import annotations
 
 from dataclasses import dataclass, replace

@@ -1,3 +1,4 @@
+# CONSENSUS-CRITICAL: Protocol V2 consensus-sensitive code. Changes require review per docs/CONSENSUS_CHANGE_POLICY.md.
 
 """Curator registry and attestation logic."""
 
@@ -40,7 +41,6 @@ class Curator:
 class Registry:
     """Curator registry bound to a deterministic chain state."""
 
-# CONSENSUS-CRITICAL: module-level consensus-sensitive code (witness.py)
     def __init__(self, entries: list[Curator] | None = None):
         self._by_id: dict[str, Curator] = {}
         if entries:

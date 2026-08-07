@@ -1,3 +1,4 @@
+# CONSENSUS-CRITICAL: Protocol V2 consensus-sensitive code. Changes require review per docs/CONSENSUS_CHANGE_POLICY.md.
 
 """Ledger and chain validation with 256-bit target and retarget rules."""
 
@@ -45,7 +46,6 @@ MAX_RETARGET_FACTOR = 4
 
 def _canonical_txid(body_dict: dict[str, Any]) -> str:
     """Return a deterministic transaction ID with canonical signature ordering."""
-# CONSENSUS-CRITICAL: module-level consensus-sensitive code (chain.py)
     canonical_body = dict(body_dict)
     if "governance_signatures" in canonical_body:
         canonical_body["governance_signatures"] = sorted(
