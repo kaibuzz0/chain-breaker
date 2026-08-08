@@ -17,6 +17,7 @@ from .errors import (
     TransportLimitError,
     TransportStateError,
     TransportTimeoutError,
+    TransportValidationError,
 )
 from .interface import Transport
 from .limits import RateLimiter, TransportLimits
@@ -24,6 +25,12 @@ from .memory import MemoryTransport, create_memory_transport_pair
 from .queue import BoundedMessageQueue
 
 __all__ = [
+    "PeerCapabilities",
+    "HandshakeState",
+    "HandshakeSession",
+    "HandshakeContext",
+    "ManagedConnection",
+    "ConnectionManager",
     "Transport",
     "Connection",
     "ConnectionState",
@@ -32,9 +39,18 @@ __all__ = [
     "TransportLimitError",
     "TransportTimeoutError",
     "TransportStateError",
+    "TransportValidationError",
     "TransportLimits",
     "RateLimiter",
     "BoundedMessageQueue",
     "MemoryTransport",
     "create_memory_transport_pair",
 ]
+
+from .handshake import (
+    HandshakeContext,
+    HandshakeSession,
+    HandshakeState,
+    PeerCapabilities,
+)
+from .manager import ConnectionManager, ManagedConnection
