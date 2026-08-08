@@ -61,6 +61,27 @@ class StorageBackend:
     def close(self) -> None:
         raise NotImplementedError
 
+    def read_chain_up_to(self, height: int) -> list[BlockV2]:
+        """Read the canonical chain from genesis up to the given height."""
+        raise NotImplementedError
+
+    def list_blocks(self) -> list[int]:
+        """Return sorted list of canonical block heights present on disk."""
+        raise NotImplementedError
+
+    def atomic_tip_switch(
+        self,
+        new_tip_height: int,
+        new_tip_hash: str,
+        disconnect_heights: list[int] | None = None,
+    ) -> dict[str, Any]:
+        """Atomically update HEAD to the new tip and rebuild derived data."""
+        raise NotImplementedError
+
+    def rebuild_indexes(self) -> dict[str, Any]:
+        """Rebuild all derived indexes from canonical block files."""
+        raise NotImplementedError
+
 
 class FlatFileStorageBackend(StorageBackend):
     """Flat-file storage backend with journal-based atomic commits."""
@@ -341,6 +362,11 @@ class FlatFileStorageBackend(StorageBackend):
         return registry_root(state)
 
     def read_snapshot(self, height: int) -> RegistryState | None:
+        # Snapshots above the canonical HEAD belong to an orphaned or future
+        # branch and must not be trusted as canonical state.
+        tip = self.get_tip()
+        if height > tip["height"]:
+            return None
         path = self._snapshot_path(height)
         if not path.exists():
             return None
@@ -375,6 +401,99 @@ class FlatFileStorageBackend(StorageBackend):
         if HashEngine.hash_single_hex(data) != content_hash:
             raise StorageIOError(f"archive object {content_hash} corrupt")
         return data
+
+    def read_chain_up_to(self, height: int) -> list[BlockV2]:
+        """Read canonical blocks from genesis up to and including height."""
+        blocks: list[BlockV2] = []
+        for h in range(0, height + 1):
+            if h == 0:
+                from chainbreaker.block import create_genesis_block
+
+                genesis = create_genesis_block(network_id=self.network_id)
+                blocks.append(genesis)
+                continue
+            try:
+                blocks.append(self.read_block(h))
+            except Exception as exc:
+                raise StorageIOError(f"cannot read canonical block at height {h}: {exc}") from exc
+        return blocks
+
+    def list_blocks(self) -> list[int]:
+        """Return sorted canonical block heights."""
+        heights = []
+        for p in self.blocks_dir.glob("*.bin"):
+            try:
+                heights.append(int(p.stem))
+            except ValueError:
+                continue
+        return sorted(heights)
+
+    def atomic_tip_switch(
+        self,
+        new_tip_height: int,
+        new_tip_hash: str,
+        disconnect_heights: list[int] | None = None,
+    ) -> dict[str, Any]:
+        """Atomically update HEAD and rebuild derived indexes."""
+        if new_tip_height < 0:
+            raise StorageIOError("tip height must be non-negative")
+
+        self._fail("before_head_update")
+        head_line = (
+            f"{new_tip_height:020d}:{new_tip_hash}:"
+            + f"{self.network_id}:{self.genesis_hash}:{self.STORAGE_FORMAT_VERSION}"
+            + chr(10)
+        )
+        atomic_write(self.head_path, head_line.encode("utf-8"))
+        self._fail("after_head_update")
+
+        index_info = self.rebuild_indexes()
+
+        return {
+            "new_tip_height": new_tip_height,
+            "new_tip_hash": new_tip_hash,
+            "rebuilt_indexes": index_info,
+        }
+
+    def rebuild_indexes(self) -> dict[str, Any]:
+        """Rebuild height/hash indexes from canonical block files below HEAD."""
+        tip = self.get_tip()
+        safe_height = tip["height"]
+        height_to_hash: dict[str, str] = {}
+        hash_to_height: dict[str, int] = {}
+        for h in self.list_blocks():
+            if h > safe_height:
+                continue
+            try:
+                block = self.read_block(h)
+                bh = block.header.hash()
+                height_to_hash[str(h)] = bh
+                hash_to_height[bh] = h
+            except (StorageIOError, FileNotFoundError, ValueError):
+                # A missing or corrupt block below the tip is left out of the
+                # rebuilt indexes; the HEAD/verification path is authoritative.
+                continue
+
+        self.indexes_dir.mkdir(parents=True, exist_ok=True)
+        if height_to_hash:
+            atomic_write(
+                self.indexes_dir / "height_to_hash.json",
+                json.dumps(height_to_hash, sort_keys=True, indent=2).encode("utf-8"),
+            )
+            atomic_write(
+                self.indexes_dir / "hash_to_height.json",
+                json.dumps(hash_to_height, sort_keys=True, indent=2).encode("utf-8"),
+            )
+        else:
+            for name in ("height_to_hash.json", "hash_to_height.json"):
+                ip = self.indexes_dir / name
+                if ip.exists():
+                    safe_unlink(ip)
+
+        return {
+            "tip_height": safe_height,
+            "indexed_heights": sorted(int(k) for k in height_to_hash),
+        }
 
     def close(self) -> None:
         self.lock.release()
