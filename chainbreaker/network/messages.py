@@ -14,6 +14,7 @@ from .codec import decode_payload, encode_payload
 from .constants import (
     ARCHIVE,
     BLOCK,
+    DEFAULT_GOSSIP_TTL,
     GET_ARCHIVE,
     GET_BLOCK,
     GET_DATA,
@@ -389,3 +390,49 @@ MESSAGE_PAYLOAD_CLASSES: dict[int, Any] = {
     GET_DATA: GetDataMessage,
     REJECT: RejectMessage,
 }
+
+
+class PEXMessage:
+    """Peer exchange advertisement. V1 supports endpoint hints only."""
+
+    peers: list[dict[str, object]]
+    ttl: int
+    hop_count: int
+
+    def __init__(
+        self,
+        peers: list[dict[str, object]] | None = None,
+        ttl: int = DEFAULT_GOSSIP_TTL,
+        hop_count: int = 0,
+    ) -> None:
+        self.peers = list(peers) if peers else []
+        self.ttl = max(0, ttl)
+        self.hop_count = max(0, hop_count)
+
+    def to_payload(self) -> bytes:
+        return encode_payload({
+            "peers": self.peers,
+            "ttl": self.ttl,
+            "hop_count": self.hop_count,
+        })
+
+    @classmethod
+    def from_payload(cls, payload: bytes) -> PEXMessage:
+        obj = decode_payload(payload)
+        if not isinstance(obj, dict):
+            raise NetworkValidationError("pex: payload must be object")
+        peers = obj.get("peers", [])
+        if not isinstance(peers, list) or len(peers) > 16:
+            raise NetworkValidationError("pex: invalid peer list")
+        for peer in peers:
+            if not isinstance(peer, dict):
+                raise NetworkValidationError("pex: peer must be dict")
+            host = peer.get("host")
+            port = peer.get("port")
+            if not isinstance(host, str) or not isinstance(port, int):
+                raise NetworkValidationError("pex: invalid peer endpoint")
+        ttl = obj.get("ttl", DEFAULT_GOSSIP_TTL)
+        hop_count = obj.get("hop_count", 0)
+        validate_nonnegative_int(ttl)
+        validate_nonnegative_int(hop_count)
+        return cls(peers=peers, ttl=int(ttl), hop_count=int(hop_count))

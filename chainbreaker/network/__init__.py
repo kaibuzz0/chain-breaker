@@ -35,6 +35,9 @@ from .constants import (
     PONG,
     REJECT,
 )
+from .constants import (
+    PEX as PEX,
+)
 from .envelope import NetworkEnvelope, parse_envelope, serialize_envelope
 from .errors import (
     NetworkError,
@@ -54,6 +57,7 @@ from .messages import (
     HelloAckMessage,
     HelloMessage,
     InventoryMessage,
+    PEXMessage,
     PingMessage,
     PongMessage,
     RejectMessage,
@@ -102,6 +106,7 @@ __all__ = [
     "GetArchiveMessage",
     "ArchiveMessage",
     "InventoryMessage",
+    "PEXMessage",
     "GetDataMessage",
     "RejectMessage",
 ]
