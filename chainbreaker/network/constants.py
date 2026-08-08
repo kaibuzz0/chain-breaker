@@ -21,6 +21,18 @@ FLAGS_SIZE = 1
 PAYLOAD_LENGTH_SIZE = 4
 PAYLOAD_HASH_SIZE = 32
 
+# Fixed header size for the canonical network ID.
+ENVELOPE_HEADER_SIZE = (
+    MAGIC_SIZE
+    + PROTOCOL_VERSION_SIZE
+    + NETWORK_ID_LENGTH_SIZE
+    + len(NETWORK_ID_BYTES)
+    + MESSAGE_TYPE_SIZE
+    + FLAGS_SIZE
+    + PAYLOAD_LENGTH_SIZE
+    + PAYLOAD_HASH_SIZE
+)
+
 # Minimum envelope size with the canonical network ID.
 MIN_ENVELOPE_SIZE = (
     MAGIC_SIZE
@@ -37,7 +49,7 @@ MIN_ENVELOPE_SIZE = (
 MAX_PAYLOAD_BYTES = 2_000_000
 
 # Maximum total message size on the wire.
-MAX_MESSAGE_SIZE = MIN_ENVELOPE_SIZE + MAX_PAYLOAD_BYTES
+MAX_MESSAGE_SIZE = ENVELOPE_HEADER_SIZE + MAX_PAYLOAD_BYTES
 
 # Maximum network ID length permitted by the envelope format.
 MAX_NETWORK_ID_LENGTH = 64
