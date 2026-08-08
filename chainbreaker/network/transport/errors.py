@@ -19,5 +19,9 @@ class TransportTimeoutError(TransportError):
     """Raised when a transport operation exceeds its timeout."""
 
 
+class TransportValidationError(TransportError):
+    """Validation failure during transport or handshake."""
+
+
 class TransportStateError(TransportError):
     """Raised for invalid connection state transitions."""
