@@ -434,9 +434,18 @@ class FlatFileStorageBackend(StorageBackend):
         new_tip_hash: str,
         disconnect_heights: list[int] | None = None,
     ) -> dict[str, Any]:
-        """Atomically update HEAD and rebuild derived indexes."""
+        """Atomically update HEAD and rebuild derived indexes.
+
+        Durability ordering: journal commit record is durable before HEAD is
+        rewritten, so a crash after HEAD update can still recover to the new
+        tip by replaying the journal.
+        """
         if new_tip_height < 0:
             raise StorageIOError("tip height must be non-negative")
+
+        self._fail("before_reorg_commit")
+        self.journal.append(JOURNAL_COMMIT, new_tip_height)
+        self._fail("after_reorg_commit")
 
         self._fail("before_head_update")
         head_line = (

@@ -114,6 +114,11 @@ unchanged.
   transactions, matching `chain.py` semantics.
 - `read_snapshot` did not bound snapshot eligibility by canonical HEAD; fixed
   so orphaned snapshots cannot be trusted as canonical state.
+- **Adversarial preflight finding:** `atomic_tip_switch` originally rewrote
+  `HEAD` without first writing a `JOURNAL_COMMIT` record. A crash after HEAD
+  update but before index rebuild would leave `recover_store` with a HEAD ahead
+  of the last commit, risking hybrid-state recovery. Fixed by appending
+  `JOURNAL_COMMIT` before the HEAD write.
 
 ## Protocol V2 Behavior
 
