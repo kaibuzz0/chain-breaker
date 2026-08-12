@@ -45,7 +45,7 @@ class TCPClientTransport:
                 asyncio.open_connection(self._host, self._port),
                 timeout=self._limits.connect_timeout_seconds,
             )
-        except TimeoutError as exc:
+        except (TimeoutError, asyncio.TimeoutError) as exc:
             raise SocketTransportError("connect timed out") from exc
         except OSError as exc:
             raise SocketTransportError(f"connect failed: {exc}") from exc
@@ -77,7 +77,7 @@ class TCPClientTransport:
                     self._reader.read(self._limits.recv_buffer_size),
                     timeout=self._limits.read_timeout_seconds,
                 )
-            except TimeoutError as exc:
+            except (TimeoutError, asyncio.TimeoutError) as exc:
                 raise SocketClosedError("read timed out") from exc
             if not data:
                 raise SocketClosedError("connection closed by peer")
@@ -148,7 +148,7 @@ class TCPServerTransport:
                     self._reader.read(self._limits.recv_buffer_size),
                     timeout=self._limits.read_timeout_seconds,
                 )
-            except TimeoutError as exc:
+            except (TimeoutError, asyncio.TimeoutError) as exc:
                 raise SocketClosedError("read timed out") from exc
             if not data:
                 raise SocketClosedError("connection closed by peer")
