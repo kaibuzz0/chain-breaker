@@ -84,3 +84,59 @@ async def _client_read_timeout_coro() -> None:
     await client.close()
     server.close()
     await server.wait_closed()
+
+
+
+async def _timeout_error_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    addr = writer.get_extra_info("peername") or ("unknown", 0)
+    server = TCPServerTransport(reader, writer, addr, connection_id="server")
+    try:
+        await asyncio.sleep(10.0)
+    finally:
+        await server.close()
+
+
+def test_receive_normalizes_asyncio_timeout_error() -> None:
+    """Regression for Python 3.10 where asyncio.wait_for raises asyncio.TimeoutError.
+
+    The transport must normalize either builtin TimeoutError or asyncio.TimeoutError
+    into the controlled SocketClosedError("read timed out") used by higher layers.
+    """
+    return asyncio.run(_receive_normalizes_asyncio_timeout_coro())
+
+
+async def _receive_normalizes_asyncio_timeout_coro() -> None:
+    limits = SocketLimits(read_timeout_seconds=0.05, write_timeout_seconds=0.05)
+
+    class _FakeReader:
+        def __init__(self) -> None:
+            self.feed_eof_calls = 0
+
+        def at_eof(self) -> bool:
+            return False
+
+        async def read(self, n: int = -1) -> bytes:
+            raise asyncio.TimeoutError()
+
+    class _FakeWriter:
+        def __init__(self) -> None:
+            self._closing = False
+
+        def is_closing(self) -> bool:
+            return self._closing
+
+        def close(self) -> None:
+            self._closing = True
+
+        async def wait_closed(self) -> None:
+            pass
+
+        async def drain(self) -> None:
+            pass
+
+    client = TCPClientTransport("127.0.0.1", 12345, limits=limits)
+    client._reader = _FakeReader()  # type: ignore[assignment]
+    client._writer = _FakeWriter()  # type: ignore[assignment]
+
+    with pytest.raises(SocketClosedError, match="timed out"):
+        await client.receive()
