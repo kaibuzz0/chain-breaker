@@ -55,3 +55,26 @@ fn target_be_le_consistency() {
     le.reverse();
     assert_ne!(target, le);
 }
+
+
+#[test]
+fn network_identity_derives_registry_root_and_genesis() {
+    let identity = chainbreaker_v2_verifier::network_identity::NetworkIdentity {
+        network_id: "chainbreaker-8md-test-vectors".to_string(),
+        kind: "test".to_string(),
+        governance_keys: vec![
+            "aa42478fcf92a320d6e46a5bb805f80b0276894a670d8563476279f96a5b812c".to_string(),
+            "ac9c0f87404e2b0cd4c6aa65d6cd74a2cc1159a13f8e46d584ef182fb5a0c3b3".to_string(),
+            "c75d922d2c75b43c610891d8ada1f96c06ecc4a8199b0c420c5b8aea23f5d588".to_string(),
+        ],
+        governance_threshold: 2,
+        genesis_timestamp: 1704067200,
+    };
+    let expected_root = hex::decode("88d05861fa8524933091ced2b0c5eba0da2f58c7bd41e62bcdf36b8c7bc36a26").unwrap();
+    let derived = chainbreaker_v2_verifier::network_identity::registry_root(&identity);
+    assert_eq!(&derived[..], expected_root.as_slice());
+
+    let (header, hash) = chainbreaker_v2_verifier::network_identity::derive_genesis(&identity).unwrap();
+    assert_eq!(hex::encode(header.registry_root), "88d05861fa8524933091ced2b0c5eba0da2f58c7bd41e62bcdf36b8c7bc36a26");
+    assert_eq!(hex::encode(&hash), "0000618a74626b68a028978681ae432f7677f5dcc75e37ec9c05704d6d11b353");
+}

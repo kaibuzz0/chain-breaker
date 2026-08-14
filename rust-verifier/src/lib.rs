@@ -5,10 +5,13 @@ use std::convert::TryInto;
 use std::io;
 use thiserror::Error;
 
+pub mod network_identity;
+
 pub const HEADER_V2_LEN: usize = 149;
 pub const HASH_LEN: usize = 32;
 
 pub const NETWORK_ID: &str = "chainbreaker-scripture-v2";
+pub const GENESIS_TARGET_HEX: &str = "0000ffff00000000000000000000000000000000000000000000000000000000";
 pub const PROTOCOL_VERSION: u32 = 2;
 pub const TYPE_HEADER: u8 = 0x02;
 
@@ -31,6 +34,8 @@ pub enum VerifyError {
         actual: String,
     },
 }
+
+pub use network_identity::{derive_genesis, mine_genesis_header, NetworkIdentity, registry_root as derive_registry_root, serialize_genesis_registry_state};
 
 pub type Result<T, E = VerifyError> = std::result::Result<T, E>;
 
@@ -243,10 +248,10 @@ pub fn build_attestation_preimage(
     Value::Object(map)
 }
 
-pub fn build_governance_message(body: &Value) -> [u8; HASH_LEN] {
+pub fn build_governance_message(body: &Value, network_id: &str) -> [u8; HASH_LEN] {
     let body_hash = hash_object_hex(body);
     let msg = serde_json::json!({
-        "network_id": "chainbreaker-scripture-v2",
+        "network_id": network_id,
         "version": 2,
         "type": "registry",
         "body_hash": body_hash,

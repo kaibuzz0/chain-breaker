@@ -30,3 +30,6 @@ node-storage/
 
 .ruff_cache/
 .mypy_cache/
+
+# Phase 8M-D network identity vectors
+!test-vectors/network-identities.json
