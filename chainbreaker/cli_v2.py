@@ -703,7 +703,7 @@ def v2_chain_init(
 
         "genesis_hash": ledger.genesis_hash(),
 
-        "registry_root": ledger.chain[0].header.registry_root,
+        "registry_root": ledger.chain[0].header.registry_root if hasattr(ledger.chain[0].header, "registry_root") else "0" * 64,
 
         "network_id": network_id,
 
