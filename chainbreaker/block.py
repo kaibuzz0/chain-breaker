@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from .codec import BinaryCodec
+from .codec import BinaryCodec, validate_v2_transaction
 from .crypto import HashEngine, MerkleTree, hex_to_target, target_to_hex
 
 PROTOCOL_VERSION = 2
@@ -255,6 +255,13 @@ class Block:
             return False
 
         # Validate transactions if a validator is supplied
+        # Baseline V2 transaction schema validation is mandatory.
+        for tx in self.transactions:
+            try:
+                validate_v2_transaction(tx)
+            except Exception:
+                return False
+
         if transaction_validator is not None:
             for tx in self.transactions:
                 if not transaction_validator(tx):
@@ -345,7 +352,13 @@ class BlockV2:
                median_past: int | None = None,
                expected_target: int | None = None,
                transaction_validator: Callable[[dict[str, Any]], bool] | None = None) -> bool:
-        """Verify v2 block integrity."""
+        """Verify v2 block integrity.
+
+        Generic V2 transaction schema validation is mandatory. The optional
+        ``transaction_validator`` callback may apply additional
+        application-specific checks, but it cannot disable the baseline
+        consensus schema validation.
+        """
         if self.header.version != PROTOCOL_VERSION:
             return False
         if allow_genesis and self.is_genesis():
@@ -371,6 +384,13 @@ class BlockV2:
 
         if median_past is not None and self.header.timestamp <= median_past:
             return False
+
+        # Baseline V2 transaction schema validation is mandatory.
+        for tx in self.transactions:
+            try:
+                validate_v2_transaction(tx)
+            except Exception:
+                return False
 
         if transaction_validator is not None:
             for tx in self.transactions:

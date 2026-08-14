@@ -13,6 +13,7 @@ from chainbreaker.chain import Ledger
 from chainbreaker.network.messages import BlockMessage, InventoryMessage
 from chainbreaker.network.relay import RelayEngine, RelayLimitPolicy
 from chainbreaker.storage import FlatFileStorageBackend
+from tests._adversarial_block_helpers import mine_adversarial_block
 
 
 @pytest.fixture
@@ -54,7 +55,7 @@ def test_orphan_pool_bound(engine: RelayEngine) -> None:
     engine = RelayEngine(ledger=engine._ledger, storage=engine._storage, limits=RelayLimitPolicy(max_orphan_blocks=2))
     for i in range(3):
         temp = Ledger(chain=list(engine._ledger.chain))
-        block = temp.mine_block_v2([{"id": f"tx-{i}"}])
+        block = mine_adversarial_block(temp, [{"id": f"tx-{i}"}])
         engine.add_orphan(block, "peer-a", now=0.0)
     assert len(engine._orphans) == 2
 

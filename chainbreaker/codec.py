@@ -436,6 +436,87 @@ def validate_transaction(tx: dict[str, Any]) -> None:
             raise SchemaError("signature must be a string")
 
 
+
+def validate_v2_transaction(tx: dict[str, Any]) -> None:
+    """Validate a Protocol V2 transaction envelope.
+
+    This validator reflects the actual transaction shapes used by the V2
+    consensus path, including the internal ``{type, body}`` envelope used by
+    governance transactions and the canonical ``{version, type, body,
+    witnesses}`` envelope produced by ``BinaryCodec`` for network or storage.
+
+    It validates schema only: cryptographic and governance-authorization
+    checks remain the responsibility of the registry reducer.
+    """
+    if not isinstance(tx, dict):
+        raise SchemaError("transaction must be a dict")
+
+    tx_type = tx.get("type")
+    if tx_type not in {"genesis", "governance", "scripture"}:
+        raise SchemaError(f"unsupported v2 transaction type: {tx_type}")
+
+    body = tx.get("body")
+    if not isinstance(body, dict):
+        raise SchemaError("transaction body must be a dict")
+
+    if tx_type == "genesis":
+        validate_genesis_body(body)
+        return
+
+    if tx_type == "scripture":
+        validate_scripture_body(body)
+        return
+
+    # Governance transaction: body is a registry mutation.
+    action = body.get("action")
+    if action not in {"curator_register", "curator_rotate", "curator_revoke"}:
+        raise SchemaError("governance action must be curator_register, curator_rotate, or curator_revoke")
+
+    required_base = {"action", "curator_id", "public_key_hex", "previous_registry_root", "network_id", "schema_version"}
+    if not required_base.issubset(body.keys()):
+        raise SchemaError("governance body missing required base fields")
+
+    if not isinstance(body["curator_id"], str) or not body["curator_id"]:
+        raise SchemaError("curator_id must be a non-empty string")
+
+    if not _is_hash(body["public_key_hex"]):
+        raise SchemaError("public_key_hex must be a 64-char hex Ed25519 public key")
+
+    if not _is_hash(body["previous_registry_root"]):
+        raise SchemaError("previous_registry_root must be a 64-char hex hash")
+
+    if body.get("network_id", "chainbreaker-scripture-v2") != "chainbreaker-scripture-v2":
+        raise SchemaError("unsupported network_id")
+
+    if body.get("schema_version", 1) != 1:
+        raise SchemaError("unsupported governance schema_version")
+
+    if action == "curator_register":
+        if not _require_int(body.get("activation_height"), min_value=0):
+            raise SchemaError("activation_height must be a non-negative integer")
+    elif action == "curator_rotate":
+        if not _require_int(body.get("activation_height"), min_value=0):
+            raise SchemaError("activation_height must be a non-negative integer")
+        if "new_public_key_hex" not in body or not _is_hash(body["new_public_key_hex"]):
+            raise SchemaError("new_public_key_hex must be a 64-char hex public key")
+    elif action == "curator_revoke":
+        if not _require_int(body.get("revocation_height"), min_value=0):
+            raise SchemaError("revocation_height must be a non-negative integer")
+        if not isinstance(body.get("reason_code"), str) or not body["reason_code"]:
+            raise SchemaError("reason_code must be a non-empty string")
+
+    sigs = body.get("governance_signatures")
+    if not isinstance(sigs, list) or not sigs:
+        raise SchemaError("governance_signatures must be a non-empty list")
+    for sig in sigs:
+        if not isinstance(sig, dict):
+            raise SchemaError("governance signature must be a dict")
+        if not _require_int(sig.get("key_index"), min_value=0):
+            raise SchemaError("key_index must be a non-negative integer")
+        if not isinstance(sig.get("signature"), str):
+            raise SchemaError("signature must be a string")
+
+
 def validate_registry_body(body: dict[str, Any]) -> None:
     required = {
         "action", "curator_id", "public_key_hex", "activation_height",

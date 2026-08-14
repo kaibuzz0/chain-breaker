@@ -171,13 +171,17 @@ def test_invalid_public_key_in_governance_rejected():
     body = {
         "action": "curator_register",
         "curator_id": "alice",
-        "public_key_hex": "not_a_valid_key",
+        "public_key_hex": encode_public_key(generate_keypair()[1]),
         "activation_height": 2,
         "previous_registry_root": registry_root(ledger.registry_state_at(0)),
         "network_id": NETWORK_ID,
         "schema_version": 1,
     }
     body["governance_signatures"] = _sign_body(privs, body)
+    # Mutate the public key after signing so the governance authorization fails.
+    # The new key still has a valid V2 schema shape, so rejection proves
+    # governance validation runs on top of generic schema validation.
+    body["public_key_hex"] = "1" * 64
     assert not ledger.add_block_v2(ledger.mine_block_v2([{"type": "governance", "body": body}]))
 
 
