@@ -1117,32 +1117,16 @@ def v2_archive_verify(
     archive = Archive(str(base))
 
     try:
-        manifest = archive.get_manifest(manifest_hash)
+        manifest = archive.verify_document(manifest_hash)
     except Exception as exc:
-        raise CLIError(f"manifest read failed: {exc}") from exc
+        raise CLIError(f"archive verification failed: {exc}") from exc
 
     if manifest.get("network_id") != NETWORK_ID:
         raise CLIError("manifest network ID does not match this chain")
     if manifest.get("schema_version") != 1:
         raise CLIError("unsupported manifest schema version")
 
-    # Recompute manifest hash from stored bytes to detect metadata tampering.
-    mpath = archive.manifests_dir / manifest_hash
-    stored_bytes = mpath.read_bytes()
-    if HashEngine.hash_single_hex(stored_bytes) != manifest_hash:
-        raise CLIError("manifest hash mismatch; manifest metadata has been tampered with")
-
-    # Recompute content hash and length from stored bytes.
-    try:
-        content = archive.get_document(manifest["content_hash"])
-    except Exception as exc:
-        raise CLIError(f"content read failed: {exc}") from exc
-
-    content_hash = HashEngine.hash_single_hex(content)
-    if content_hash != manifest["content_hash"]:
-        raise CLIError("content hash mismatch; document bytes have been modified")
-    if len(content) != manifest["byte_length"]:
-        raise CLIError("content length mismatch")
+    content = archive.get_document(manifest["content_hash"])
 
     click.echo(json.dumps({
         "manifest_hash": manifest_hash,

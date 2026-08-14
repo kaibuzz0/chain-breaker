@@ -1284,7 +1284,9 @@ def test_v2_archive_rejects_wrong_network_or_schema(runner: CliRunner) -> None:
             "--manifest-hash", manifest_hash,
         ])
         assert result.exit_code != 0
-        assert "network id" in result.output.lower()
+        # Mutating manifest bytes now changes the manifest hash, so verification
+        # rejects the tampered manifest before reaching the network-id check.
+        assert "manifest hash mismatch" in result.output.lower()
 
 
 def test_v2_archive_refuses_overwrite_without_force(runner: CliRunner) -> None:
