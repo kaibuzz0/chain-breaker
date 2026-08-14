@@ -21,7 +21,7 @@ from .block import (
     BlockV2,
     create_genesis_block,
 )
-from .codec import BinaryCodec, validate_transaction
+from .codec import BinaryCodec, validate_v2_transaction
 from .crypto import HashEngine, MerkleTree, work_for_target, work_for_target_v2
 from .governance import (
     CuratorRegisterTx,
@@ -221,7 +221,7 @@ class Ledger:
             transactions = [coinbase] + list(transactions)
 
         for tx in transactions:
-            validate_transaction(tx)
+            validate_v2_transaction(tx)
 
         prev_hash = self.last_block.hash
         height = self.height() + 1
@@ -252,6 +252,9 @@ class Ledger:
                       max_iterations: int = 10_000_000,
                       timestamp: int | None = None) -> BlockV2:
         """Create and mine a new v2 block with registry-root commitment."""
+        for tx in transactions:
+            validate_v2_transaction(tx)
+
         prev_hash = self.last_block.hash
         height = self.height() + 1
         target = self.expected_target_at(height)
