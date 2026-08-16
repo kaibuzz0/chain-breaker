@@ -1,0 +1,76 @@
+name: Focused Rust Verifier Audit Fix
+
+on:
+  push:
+    branches: [repo-sequential-audit]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@v4
+        with:
+          ref: repo-sequential-audit
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Apply two known main.rs compile fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('rust-verifier/src/main.rs')
+          s = p.read_text()
+          old1 = '''            let base_id = NetworkIdentity::from_json(
+                as_array(&val["vectors"],
+                    "network-identities vectors"
+                )?[1]
+            )?;'''
+          new1 = '''            let base_id = NetworkIdentity::from_json(
+                &as_array(&val["vectors"],
+                    "network-identities vectors"
+                )?[1]
+            )?;'''
+          old2 = '''        let network_id = gov_rr["network_id"]
+            .as_str()
+            .unwrap_or(crate::NETWORK_ID);'''
+          new2 = '''        let network_id = val["network_id"]
+            .as_str()
+            .unwrap_or(crate::NETWORK_ID);'''
+          if s.count(old1) != 1:
+              raise SystemExit(f'expected exactly one base_id pattern, found {s.count(old1)}')
+          if s.count(old2) != 1:
+              raise SystemExit(f'expected exactly one gov_rr pattern, found {s.count(old2)}')
+          p.write_text(s.replace(old1, new1).replace(old2, new2))
+          PY
+
+      - name: Format Rust verifier
+        run: cargo fmt --manifest-path rust-verifier/Cargo.toml
+
+      - name: Generate reproducible lockfile
+        run: cargo generate-lockfile --manifest-path rust-verifier/Cargo.toml
+
+      - name: Clippy
+        run: cargo clippy --manifest-path rust-verifier/Cargo.toml --all-targets --all-features -- -D warnings
+
+      - name: Test
+        run: cargo test --manifest-path rust-verifier/Cargo.toml --verbose
+
+      - name: Verify frozen vectors
+        run: cargo run --manifest-path rust-verifier/Cargo.toml -- verify test-vectors
+
+      - name: Commit verified focused fixes and remove temporary workflow
+        run: |
+          rm .github/workflows/audit-rust-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add rust-verifier .github/workflows/audit-rust-fix.yml
+          git diff --cached --check
+          git commit -m "fix Rust verifier compile errors and lock dependencies"
+          git push origin HEAD:repo-sequential-audit
