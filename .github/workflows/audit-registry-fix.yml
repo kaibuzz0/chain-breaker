@@ -1,0 +1,215 @@
+name: Focused Registry State Audit Fix
+
+on:
+  push:
+    branches: [repo-sequential-audit]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: repo-sequential-audit
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Apply registry-state identity fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('chainbreaker/registry_state.py')
+          s = p.read_text()
+
+          anchor = '''    if isinstance(tx, CuratorRegisterTx):\n\n        return _apply_register(state, tx, block_height, txid, context)\n'''
+          guard = '''    if state.network_id != context.network_id:\n\n        raise RegistryError("registry state network_id does not match governance context")\n\n    if tx.network_id != state.network_id:\n\n        raise RegistryError("governance transaction network_id does not match registry state")\n\n    if isinstance(tx, CuratorRegisterTx):\n\n        return _apply_register(state, tx, block_height, txid, context)\n'''
+          if anchor in s:
+              s = s.replace(anchor, guard, 1)
+          elif guard not in s:
+              raise SystemExit('registry identity guard insertion point not found')
+
+          old_sig = 'def _verify_curator_signature(record: CuratorRecord, body_without_witness: dict[str, Any], signature_hex: str) -> None:\n'
+          new_sig = 'def _verify_curator_signature(record: CuratorRecord, body_without_witness: dict[str, Any], signature_hex: str, network_id: str = NETWORK_ID) -> None:\n'
+          if old_sig in s:
+              s = s.replace(old_sig, new_sig, 1)
+          elif new_sig not in s:
+              raise SystemExit('curator signature helper signature not found')
+
+          old_net = '''        "network_id": NETWORK_ID,\n\n        "version": PROTOCOL_VERSION,\n'''
+          new_net = '''        "network_id": network_id,\n\n        "version": PROTOCOL_VERSION,\n'''
+          if old_net in s:
+              s = s.replace(old_net, new_net, 1)
+          elif new_net not in s:
+              raise SystemExit('curator signature network id pattern not found')
+
+          old_call = '_verify_curator_signature(old_record, body_without_witness, tx.curator_signature_hex)'
+          new_call = '_verify_curator_signature(old_record, body_without_witness, tx.curator_signature_hex, network_id=state.network_id)'
+          count = s.count(old_call)
+          if count:
+              if count != 2:
+                  raise SystemExit(f'expected 2 curator signature calls, found {count}')
+              s = s.replace(old_call, new_call)
+          elif s.count(new_call) != 2:
+              raise SystemExit('curator signature calls not found')
+
+          old_return = '    return RegistryState(records=new_records)\n'
+          new_return = '''    return RegistryState(\n\n        records=new_records,\n\n        governance_version=state.governance_version,\n\n        network_id=state.network_id,\n\n        governance_keys=state.governance_keys,\n\n        threshold=state.threshold,\n\n    )\n'''
+          if old_return in s:
+              s = s.replace(old_return, new_return, 1)
+          elif new_return not in s:
+              raise SystemExit('revoke state metadata return pattern not found')
+
+          p.write_text(s)
+          PY
+
+      - name: Add permanent registry regression tests
+        run: |
+          cat > tests/test_sequential_audit_registry_state.py <<'PY'
+          import pytest
+
+          from chainbreaker.crypto import HashEngine, encode_public_key, generate_keypair, sign
+          from chainbreaker.governance import (
+              CuratorRegisterTx,
+              CuratorRevokeTx,
+              GovernanceContext,
+              make_governance_signature,
+          )
+          from chainbreaker.registry_state import (
+              RegistryError,
+              RegistryState,
+              apply_registry_transaction,
+              registry_root,
+          )
+
+
+          def _keys(count=3):
+              pairs = [generate_keypair() for _ in range(count)]
+              return [p[0] for p in pairs], [encode_public_key(p[1]) for p in pairs]
+
+
+          def test_reducer_rejects_state_context_network_mismatch():
+              privs, pubs = _keys()
+              state = RegistryState.genesis(pubs, 2).with_network_id('prod-a')
+              ctx = GovernanceContext(pubs, 2, network_id='prod-b')
+              _, curator_pk = generate_keypair()
+              body = {
+                  'action': 'curator_register',
+                  'curator_id': 'alice',
+                  'public_key_hex': encode_public_key(curator_pk),
+                  'activation_height': 2,
+                  'previous_registry_root': registry_root(state),
+                  'network_id': 'prod-a',
+                  'schema_version': 1,
+              }
+              body['governance_signatures'] = [
+                  make_governance_signature(sk, body, i, network_id='prod-a').to_dict()
+                  for i, sk in enumerate(privs[:2])
+              ]
+              tx = CuratorRegisterTx.from_dict(body, expected_network_id='prod-a')
+              with pytest.raises(RegistryError, match='network_id'):
+                  apply_registry_transaction(state, tx, 1, '11' * 32, ctx)
+
+
+          def test_reducer_rejects_transaction_network_mismatch():
+              privs, pubs = _keys()
+              state = RegistryState.genesis(pubs, 2).with_network_id('prod-a')
+              ctx = GovernanceContext(pubs, 2, network_id='prod-a')
+              _, curator_pk = generate_keypair()
+              body = {
+                  'action': 'curator_register',
+                  'curator_id': 'alice',
+                  'public_key_hex': encode_public_key(curator_pk),
+                  'activation_height': 2,
+                  'previous_registry_root': registry_root(state),
+                  'network_id': 'prod-b',
+                  'schema_version': 1,
+              }
+              body['governance_signatures'] = [
+                  make_governance_signature(sk, body, i, network_id='prod-b').to_dict()
+                  for i, sk in enumerate(privs[:2])
+              ]
+              tx = CuratorRegisterTx.from_dict(body, expected_network_id='prod-b')
+              with pytest.raises(RegistryError, match='network_id'):
+                  apply_registry_transaction(state, tx, 1, '22' * 32, ctx)
+
+
+          def test_revoke_preserves_registry_identity_metadata():
+              gov_privs, gov_pubs = _keys()
+              curator_sk, curator_pk_obj = generate_keypair()
+              curator_pk = encode_public_key(curator_pk_obj)
+              network_id = 'prod-a'
+              state = RegistryState.genesis(gov_pubs, 2).with_network_id(network_id)
+              ctx = GovernanceContext(gov_pubs, 2, network_id=network_id)
+
+              reg_body = {
+                  'action': 'curator_register',
+                  'curator_id': 'alice',
+                  'public_key_hex': curator_pk,
+                  'activation_height': 2,
+                  'previous_registry_root': registry_root(state),
+                  'network_id': network_id,
+                  'schema_version': 1,
+              }
+              reg_body['governance_signatures'] = [
+                  make_governance_signature(sk, reg_body, i, network_id=network_id).to_dict()
+                  for i, sk in enumerate(gov_privs[:2])
+              ]
+              reg_tx = CuratorRegisterTx.from_dict(reg_body, expected_network_id=network_id)
+              state = apply_registry_transaction(state, reg_tx, 1, '33' * 32, ctx)
+
+              revoke_body = {
+                  'action': 'curator_revoke',
+                  'curator_id': 'alice',
+                  'public_key_hex': curator_pk,
+                  'revocation_height': 4,
+                  'reason_code': 'audit',
+                  'previous_registry_root': registry_root(state),
+                  'network_id': network_id,
+                  'schema_version': 1,
+              }
+              body_hash = HashEngine.hash_object_hex(revoke_body)
+              message = HashEngine.hash_object({
+                  'network_id': network_id,
+                  'version': 2,
+                  'type': 'registry',
+                  'body_hash': body_hash,
+              })
+              revoke_body['curator_signature'] = sign(curator_sk, message)
+              revoke_body['governance_signatures'] = [
+                  make_governance_signature(sk, revoke_body, i, network_id=network_id).to_dict()
+                  for i, sk in enumerate(gov_privs[:2])
+              ]
+              tx = CuratorRevokeTx.from_dict(revoke_body, expected_network_id=network_id)
+              new_state = apply_registry_transaction(state, tx, 3, '44' * 32, ctx)
+              assert new_state.network_id == state.network_id
+              assert new_state.governance_keys == state.governance_keys
+              assert new_state.threshold == state.threshold
+              assert new_state.governance_version == state.governance_version
+          PY
+
+      - name: Run registry audit tests
+        run: python -m pytest tests/test_sequential_audit_registry_state.py tests/test_registry_state.py -vv --tb=short
+
+      - name: Ruff
+        run: ruff check chainbreaker/registry_state.py tests/test_sequential_audit_registry_state.py
+
+      - name: Mypy
+        run: mypy chainbreaker/registry_state.py
+
+      - name: Commit verified registry fixes
+        run: |
+          rm .github/workflows/audit-registry-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add chainbreaker/registry_state.py tests/test_sequential_audit_registry_state.py .github/workflows/audit-registry-fix.yml
+          git diff --cached --check
+          git commit -m "fix registry identity invariants during sequential audit"
+          git push origin HEAD:repo-sequential-audit

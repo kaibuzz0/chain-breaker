@@ -140,7 +140,7 @@ class CuratorRegisterTx:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> CuratorRegisterTx:
+    def from_dict(cls, data: dict[str, Any], expected_network_id: str = NETWORK_ID) -> CuratorRegisterTx:
         if not isinstance(data, dict):
             raise GovernanceError("register transaction body must be a dict")
         expected_keys = {
@@ -159,7 +159,8 @@ class CuratorRegisterTx:
             raise GovernanceError(f"unexpected keys: {actual_keys - expected_keys}")
         if data.get("action") != "curator_register":
             raise GovernanceError("action must be curator_register")
-        if data.get("network_id", NETWORK_ID) != NETWORK_ID:
+        network_id = data.get("network_id", NETWORK_ID)
+        if network_id != expected_network_id:
             raise GovernanceError("wrong network_id")
         if data.get("schema_version", GOVERNANCE_SCHEMA_VERSION) != GOVERNANCE_SCHEMA_VERSION:
             raise GovernanceError("unsupported schema_version")
@@ -170,6 +171,7 @@ class CuratorRegisterTx:
             display_metadata_hash=_require_optional_hex_hash(data.get("display_metadata_hash"), "display_metadata_hash"),
             previous_registry_root=_require_hex_hash(data["previous_registry_root"], "previous_registry_root", 64),
             governance_signatures=_require_signatures(data["governance_signatures"]),
+            network_id=network_id,
         )
 
 
@@ -206,7 +208,7 @@ class CuratorRotateTx:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> CuratorRotateTx:
+    def from_dict(cls, data: dict[str, Any], expected_network_id: str = NETWORK_ID) -> CuratorRotateTx:
         if not isinstance(data, dict):
             raise GovernanceError("rotate transaction body must be a dict")
         expected_keys = {
@@ -227,7 +229,8 @@ class CuratorRotateTx:
             raise GovernanceError(f"unexpected keys: {actual_keys - expected_keys}")
         if data.get("action") != "curator_rotate":
             raise GovernanceError("action must be curator_rotate")
-        if data.get("network_id", NETWORK_ID) != NETWORK_ID:
+        network_id = data.get("network_id", NETWORK_ID)
+        if network_id != expected_network_id:
             raise GovernanceError("wrong network_id")
         if data.get("schema_version", GOVERNANCE_SCHEMA_VERSION) != GOVERNANCE_SCHEMA_VERSION:
             raise GovernanceError("unsupported schema_version")
@@ -240,6 +243,7 @@ class CuratorRotateTx:
             previous_registry_root=_require_hex_hash(data["previous_registry_root"], "previous_registry_root", 64),
             governance_signatures=_require_signatures(data["governance_signatures"]),
             curator_signature_hex=_require_hex_hash(data["curator_signature"], "curator_signature", 128),
+            network_id=network_id,
         )
 
 
@@ -272,7 +276,7 @@ class CuratorRevokeTx:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> CuratorRevokeTx:
+    def from_dict(cls, data: dict[str, Any], expected_network_id: str = NETWORK_ID) -> CuratorRevokeTx:
         if not isinstance(data, dict):
             raise GovernanceError("revoke transaction body must be a dict")
         expected_keys = {
@@ -292,7 +296,8 @@ class CuratorRevokeTx:
             raise GovernanceError(f"unexpected keys: {actual_keys - expected_keys}")
         if data.get("action") != "curator_revoke":
             raise GovernanceError("action must be curator_revoke")
-        if data.get("network_id", NETWORK_ID) != NETWORK_ID:
+        network_id = data.get("network_id", NETWORK_ID)
+        if network_id != expected_network_id:
             raise GovernanceError("wrong network_id")
         if data.get("schema_version", GOVERNANCE_SCHEMA_VERSION) != GOVERNANCE_SCHEMA_VERSION:
             raise GovernanceError("unsupported schema_version")
@@ -304,13 +309,14 @@ class CuratorRevokeTx:
             previous_registry_root=_require_hex_hash(data["previous_registry_root"], "previous_registry_root", 64),
             governance_signatures=_require_signatures(data["governance_signatures"]),
             curator_signature_hex=_require_hex_hash(data["curator_signature"], "curator_signature", 128),
+            network_id=network_id,
         )
 
 
 class GovernanceContext:
     """Static genesis governance configuration."""
 
-    def __init__(self, public_keys_hex: list[str], threshold: int):
+    def __init__(self, public_keys_hex: list[str], threshold: int, network_id: str = NETWORK_ID):
         if not 1 <= len(public_keys_hex) <= 16:
             raise GovernanceError("governance key count must be 1..16")
         seen = set()
@@ -328,8 +334,11 @@ class GovernanceContext:
                 raise GovernanceError("governance key must be 32 bytes hex")
         if not 1 <= threshold <= len(public_keys_hex):
             raise GovernanceError("threshold must be 1..len(public_keys_hex)")
+        if not isinstance(network_id, str) or not network_id:
+            raise GovernanceError("network_id must be a non-empty string")
         self.public_keys_hex = tuple(public_keys_hex)
         self.threshold = threshold
+        self.network_id = network_id
 
     def verify_governance_signatures(
         self,
@@ -339,7 +348,7 @@ class GovernanceContext:
         from .crypto import decode_public_key, verify
 
         message = HashEngine.hash_object({
-            "network_id": NETWORK_ID,
+            "network_id": self.network_id,
             "version": PROTOCOL_VERSION,
             "type": "registry",
             "body_hash": HashEngine.hash_object_hex(body),
@@ -368,7 +377,7 @@ class GovernanceContext:
 GovernanceTx = CuratorRegisterTx | CuratorRotateTx | CuratorRevokeTx
 
 
-def governance_message(body_dict: dict[str, Any]) -> bytes:
+def governance_message(body_dict: dict[str, Any], network_id: str = NETWORK_ID) -> bytes:
     """Return the canonical message bytes that governance keys sign.
 
     The signed message covers the network_id, protocol version, transaction
@@ -376,7 +385,7 @@ def governance_message(body_dict: dict[str, Any]) -> bytes:
     """
     body_hash = HashEngine.hash_object_hex(body_dict)
     msg = {
-        "network_id": NETWORK_ID,
+        "network_id": network_id,
         "version": PROTOCOL_VERSION,
         "type": "registry",
         "body_hash": body_hash,
@@ -388,6 +397,7 @@ def make_governance_signature(
     sk: Any,
     body_dict: dict[str, Any],
     key_index: int,
+    network_id: str = NETWORK_ID,
 ) -> GovernanceSignature:
     """Create a governance signature for a transaction body dict.
 
@@ -403,6 +413,6 @@ def make_governance_signature(
         private_key = sk
     else:
         raise GovernanceError("invalid private key")
-    msg = governance_message(body_dict)
+    msg = governance_message(body_dict, network_id=network_id)
     sig_hex = sign(private_key, msg)
     return GovernanceSignature(key_index=key_index, signature_hex=sig_hex)

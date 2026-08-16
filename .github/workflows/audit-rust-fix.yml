@@ -1,0 +1,423 @@
+name: Focused Rust Verifier Audit Fix
+
+on:
+  push:
+    branches: [repo-sequential-audit]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@v4
+        with:
+          ref: repo-sequential-audit
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Apply known main.rs fixes idempotently
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('rust-verifier/src/main.rs')
+          s = p.read_text()
+
+          replacements = [
+              (
+                  '''            let base_id = NetworkIdentity::from_json(\n                as_array(&val["vectors"],\n                    "network-identities vectors"\n                )?[1]\n            )?;''',
+                  '''            let base_id = NetworkIdentity::from_json(\n                &as_array(&val["vectors"],\n                    "network-identities vectors"\n                )?[1]\n            )?;''',
+                  'base_id borrow',
+              ),
+              (
+                  '''        let network_id = gov_rr["network_id"]\n            .as_str()\n            .unwrap_or(crate::NETWORK_ID);''',
+                  '''        let network_id = val["network_id"]\n            .as_str()\n            .unwrap_or(crate::NETWORK_ID);''',
+                  'governance network id source',
+              ),
+              (
+                  '''    Ok(format!("passed={} failed={}", passed, failed))\n}''',
+                  '''    if failed > 0 {\n        return Err(VerifyError::Protocol(format!(\n            "verification summary: passed={} failed={}",\n            passed, failed\n        )));\n    }\n    Ok(format!("passed={} failed={}", passed, failed))\n}''',
+                  'nonzero exit on failed vector checks',
+              ),
+          ]
+
+          for old, new, label in replacements:
+              old_count = s.count(old)
+              new_count = s.count(new)
+              if old_count == 1:
+                  s = s.replace(old, new)
+              elif old_count == 0 and new_count == 1:
+                  print(f'{label}: already applied')
+              else:
+                  raise SystemExit(
+                      f'{label}: unexpected pattern counts old={old_count} new={new_count}'
+                  )
+
+          p.write_text(s)
+          PY
+
+      - name: Fix Block V2 start_nonce handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('chainbreaker/block.py')
+          s = p.read_text()
+          old = '''    # ``start_nonce`` is accepted for API compatibility but is ignored:\n\n    # search begins from the current header nonce so that wrapping behavior\n\n    # remains predictable for callers.\n'''
+          if old not in s:
+              old = '''    # ``start_nonce`` is accepted for API compatibility but is ignored: the\n\n    # search begins from the current header nonce so that wrapping behavior\n\n    # remains predictable for callers.\n'''
+          new = '''    if not (0 <= start_nonce <= 0xFFFFFFFFFFFFFFFF):\n\n        raise ValueError("start_nonce must fit in uint64")\n\n    header.nonce = start_nonce\n'''
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif new not in s:
+              raise SystemExit('mine_header_v2 start_nonce pattern not found')
+          p.write_text(s)
+          PY
+
+      - name: Verify Block V2 PoW start nonce behavior
+        run: python -m pytest tests/test_pow_v2.py::test_mine_header_v2_respects_start_nonce -vv --tb=short
+
+      - name: Fix Ledger network_id mismatch handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('chainbreaker/chain.py')
+          s = p.read_text()
+          anchor = '''                network_identity = derive_test_network_identity(governance_keys, threshold)\n\n        if chain is None:\n'''
+          replacement = '''                network_identity = derive_test_network_identity(governance_keys, threshold)\n\n        if network_id is not None and network_id != network_identity.network_id:\n\n            raise NetworkIdentityError(\n\n                f"network_id {network_id!r} does not match network identity "\n\n                f"{network_identity.network_id!r}"\n\n            )\n\n        if chain is None:\n'''
+          if anchor in s:
+              s = s.replace(anchor, replacement, 1)
+          elif replacement not in s:
+              raise SystemExit('Ledger network_id guard insertion point not found')
+          p.write_text(s)
+          PY
+
+      - name: Verify Ledger rejects silently ignored network_id
+        run: |
+          python - <<'PY'
+          from chainbreaker.chain import Ledger
+          from chainbreaker.network_identity import NetworkIdentityError
+          try:
+              Ledger(network_id='wrong-network')
+          except NetworkIdentityError:
+              pass
+          else:
+              raise SystemExit('Ledger silently ignored an explicit mismatched network_id')
+          PY
+
+      - name: Fix V2 governance schema network-id hardcode
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('chainbreaker/codec.py')
+          s = p.read_text()
+          old = '''    if body.get("network_id", "chainbreaker-scripture-v2") != "chainbreaker-scripture-v2":\n        raise SchemaError("unsupported network_id")\n'''
+          new = '''    network_id = body.get("network_id")\n    if not isinstance(network_id, str) or not network_id:\n        raise SchemaError("network_id must be a non-empty string")\n'''
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif new not in s:
+              raise SystemExit('V2 governance network-id schema pattern not found')
+          p.write_text(s)
+          PY
+
+      - name: Verify V2 schema accepts non-alpha network id structurally
+        run: |
+          python - <<'PY'
+          from chainbreaker.codec import validate_v2_transaction
+          tx = {
+              'type': 'governance',
+              'body': {
+                  'action': 'curator_register',
+                  'curator_id': 'alice',
+                  'public_key_hex': '11' * 32,
+                  'activation_height': 1,
+                  'previous_registry_root': '22' * 32,
+                  'network_id': 'chainbreaker-prod-audit',
+                  'schema_version': 1,
+                  'governance_signatures': [{'key_index': 0, 'signature': '33' * 64}],
+              },
+          }
+          validate_v2_transaction(tx)
+          PY
+
+      - name: Fix legacy V1 validator routing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          block = Path('chainbreaker/block.py')
+          s = block.read_text()
+          s2 = s.replace(
+              'from .codec import BinaryCodec, validate_v2_transaction',
+              'from .codec import BinaryCodec, validate_transaction, validate_v2_transaction',
+              1,
+          )
+          if s2 == s and 'validate_transaction, validate_v2_transaction' not in s:
+              raise SystemExit('block.py codec import pattern not found')
+          s = s2
+
+          marker = '''        # Validate transactions if a validator is supplied\n\n        # Baseline V2 transaction schema validation is mandatory.\n\n        for tx in self.transactions:\n\n            try:\n\n                validate_v2_transaction(tx)\n\n            except Exception:\n\n                return False\n'''
+          replacement = '''        # Legacy V1 blocks use the V1 transaction schema.\n\n        for tx in self.transactions:\n\n            try:\n\n                validate_transaction(tx)\n\n            except Exception:\n\n                return False\n'''
+          if marker in s:
+              s = s.replace(marker, replacement, 1)
+          elif replacement not in s:
+              raise SystemExit('Block.verify V1 validation pattern not found')
+          block.write_text(s)
+
+          chain = Path('chainbreaker/chain.py')
+          s = chain.read_text()
+          s2 = s.replace(
+              'from .codec import BinaryCodec, validate_v2_transaction',
+              'from .codec import BinaryCodec, validate_transaction, validate_v2_transaction',
+              1,
+          )
+          if s2 == s and 'validate_transaction, validate_v2_transaction' not in s:
+              raise SystemExit('chain.py codec import pattern not found')
+          s = s2
+
+          old = '''        for tx in transactions:\n\n            validate_v2_transaction(tx)\n\n\n\n        prev_hash = self.last_block.hash\n'''
+          new = '''        for tx in transactions:\n\n            validate_transaction(tx)\n\n\n\n        prev_hash = self.last_block.hash\n'''
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif new not in s:
+              raise SystemExit('Ledger.mine_block V1 validation pattern not found')
+          chain.write_text(s)
+          PY
+
+      - name: Verify legacy V1 validator routing
+        run: |
+          python - <<'PY'
+          import inspect
+          from chainbreaker.block import Block
+          from chainbreaker.chain import Ledger
+          assert 'validate_transaction(tx)' in inspect.getsource(Block.verify)
+          src = inspect.getsource(Ledger.mine_block)
+          assert 'validate_transaction(tx)' in src
+          assert 'validate_v2_transaction(tx)' not in src
+          PY
+
+      - name: Fix governance network identity propagation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('chainbreaker/governance.py')
+          s = p.read_text()
+
+          signatures = {
+              'CuratorRegisterTx': 'def from_dict(cls, data: dict[str, Any], expected_network_id: str = NETWORK_ID) -> CuratorRegisterTx:',
+              'CuratorRotateTx': 'def from_dict(cls, data: dict[str, Any], expected_network_id: str = NETWORK_ID) -> CuratorRotateTx:',
+              'CuratorRevokeTx': 'def from_dict(cls, data: dict[str, Any], expected_network_id: str = NETWORK_ID) -> CuratorRevokeTx:',
+          }
+          for cls_name, new_sig in signatures.items():
+              old_sig = f'def from_dict(cls, data: dict[str, Any]) -> {cls_name}:'
+              if old_sig in s:
+                  s = s.replace(old_sig, new_sig, 1)
+              elif new_sig not in s:
+                  raise SystemExit(f'{cls_name} from_dict signature not found')
+
+          old_check = '''        if data.get("network_id", NETWORK_ID) != NETWORK_ID:\n            raise GovernanceError("wrong network_id")\n'''
+          new_check = '''        network_id = data.get("network_id", NETWORK_ID)\n        if network_id != expected_network_id:\n            raise GovernanceError("wrong network_id")\n'''
+          count = s.count(old_check)
+          if count:
+              if count != 3:
+                  raise SystemExit(f'expected 3 governance network-id checks, found {count}')
+              s = s.replace(old_check, new_check)
+          elif s.count(new_check) != 3:
+              raise SystemExit('governance network-id checks not found')
+
+          # Preserve the parsed network id on each transaction object.
+          register_old = '''            governance_signatures=_require_signatures(data["governance_signatures"]),\n        )\n\n\n@dataclass(frozen=True)\nclass CuratorRotateTx:'''
+          register_new = '''            governance_signatures=_require_signatures(data["governance_signatures"]),\n            network_id=network_id,\n        )\n\n\n@dataclass(frozen=True)\nclass CuratorRotateTx:'''
+          if register_old in s:
+              s = s.replace(register_old, register_new, 1)
+          elif register_new not in s:
+              raise SystemExit('register network-id return pattern not found')
+
+          rotate_old = '''            curator_signature_hex=_require_hex_hash(data["curator_signature"], "curator_signature", 128),\n        )\n\n\n@dataclass(frozen=True)\nclass CuratorRevokeTx:'''
+          rotate_new = '''            curator_signature_hex=_require_hex_hash(data["curator_signature"], "curator_signature", 128),\n            network_id=network_id,\n        )\n\n\n@dataclass(frozen=True)\nclass CuratorRevokeTx:'''
+          if rotate_old in s:
+              s = s.replace(rotate_old, rotate_new, 1)
+          elif rotate_new not in s:
+              raise SystemExit('rotate network-id return pattern not found')
+
+          revoke_old = '''            curator_signature_hex=_require_hex_hash(data["curator_signature"], "curator_signature", 128),\n        )\n\n\nclass GovernanceContext:'''
+          revoke_new = '''            curator_signature_hex=_require_hex_hash(data["curator_signature"], "curator_signature", 128),\n            network_id=network_id,\n        )\n\n\nclass GovernanceContext:'''
+          if revoke_old in s:
+              s = s.replace(revoke_old, revoke_new, 1)
+          elif revoke_new not in s:
+              raise SystemExit('revoke network-id return pattern not found')
+
+          ctx_old = '    def __init__(self, public_keys_hex: list[str], threshold: int):\n'
+          ctx_new = '    def __init__(self, public_keys_hex: list[str], threshold: int, network_id: str = NETWORK_ID):\n'
+          if ctx_old in s:
+              s = s.replace(ctx_old, ctx_new, 1)
+          elif ctx_new not in s:
+              raise SystemExit('GovernanceContext signature not found')
+
+          set_old = '''        self.public_keys_hex = tuple(public_keys_hex)\n        self.threshold = threshold\n'''
+          set_new = '''        if not isinstance(network_id, str) or not network_id:\n            raise GovernanceError("network_id must be a non-empty string")\n        self.public_keys_hex = tuple(public_keys_hex)\n        self.threshold = threshold\n        self.network_id = network_id\n'''
+          if set_old in s:
+              s = s.replace(set_old, set_new, 1)
+          elif set_new not in s:
+              raise SystemExit('GovernanceContext assignment block not found')
+
+          verify_old = '''            "network_id": NETWORK_ID,\n            "version": PROTOCOL_VERSION,\n            "type": "registry",\n'''
+          verify_new = '''            "network_id": self.network_id,\n            "version": PROTOCOL_VERSION,\n            "type": "registry",\n'''
+          if verify_old in s:
+              s = s.replace(verify_old, verify_new, 1)
+          elif verify_new not in s:
+              raise SystemExit('GovernanceContext signed network-id pattern not found')
+
+          gm_old = 'def governance_message(body_dict: dict[str, Any]) -> bytes:\n'
+          gm_new = 'def governance_message(body_dict: dict[str, Any], network_id: str = NETWORK_ID) -> bytes:\n'
+          if gm_old in s:
+              s = s.replace(gm_old, gm_new, 1)
+          elif gm_new not in s:
+              raise SystemExit('governance_message signature not found')
+
+          msg_old = '''        "network_id": NETWORK_ID,\n        "version": PROTOCOL_VERSION,\n        "type": "registry",\n'''
+          msg_new = '''        "network_id": network_id,\n        "version": PROTOCOL_VERSION,\n        "type": "registry",\n'''
+          if msg_old in s:
+              s = s.replace(msg_old, msg_new, 1)
+          elif msg_new not in s:
+              raise SystemExit('governance_message network-id pattern not found')
+
+          sig_old = '''    body_dict: dict[str, Any],\n    key_index: int,\n) -> GovernanceSignature:\n'''
+          sig_new = '''    body_dict: dict[str, Any],\n    key_index: int,\n    network_id: str = NETWORK_ID,\n) -> GovernanceSignature:\n'''
+          if sig_old in s:
+              s = s.replace(sig_old, sig_new, 1)
+          elif sig_new not in s:
+              raise SystemExit('make_governance_signature signature not found')
+
+          call_old = '    msg = governance_message(body_dict)\n'
+          call_new = '    msg = governance_message(body_dict, network_id=network_id)\n'
+          if call_old in s:
+              s = s.replace(call_old, call_new, 1)
+          elif call_new not in s:
+              raise SystemExit('make_governance_signature call not found')
+
+          p.write_text(s)
+
+          chain = Path('chainbreaker/chain.py')
+          s = chain.read_text()
+          old_ctx = '        self._governance_context = GovernanceContext(self.governance_keys, self.governance_threshold)\n'
+          new_ctx = '        self._governance_context = GovernanceContext(self.governance_keys, self.governance_threshold, network_id=self.network_id)\n'
+          if old_ctx in s:
+              s = s.replace(old_ctx, new_ctx, 1)
+          elif new_ctx not in s:
+              raise SystemExit('Ledger GovernanceContext pattern not found')
+
+          for cls_name in ('CuratorRegisterTx', 'CuratorRotateTx', 'CuratorRevokeTx'):
+              old = f'            return {cls_name}.from_dict(body)\n'
+              new = f'            return {cls_name}.from_dict(body, expected_network_id=self.network_id)\n'
+              if old in s:
+                  s = s.replace(old, new, 1)
+              elif new not in s:
+                  raise SystemExit(f'Ledger {cls_name} parser pattern not found')
+          chain.write_text(s)
+          PY
+
+      - name: Verify production governance transition uses production network id
+        run: |
+          python - <<'PY'
+          from chainbreaker.chain import Ledger
+          from chainbreaker.crypto import encode_public_key, generate_keypair
+          from chainbreaker.governance import make_governance_signature
+          from chainbreaker.network_identity import derive_network_identity
+          from chainbreaker.registry_state import registry_root
+
+          pairs = [generate_keypair() for _ in range(3)]
+          privs = [p[0] for p in pairs]
+          pubs = [encode_public_key(p[1]) for p in pairs]
+          identity = derive_network_identity('chainbreaker-prod-audit', pubs, 2)
+          ledger = Ledger(network_identity=identity)
+          _, curator_pk = generate_keypair()
+          body = {
+              'action': 'curator_register',
+              'curator_id': 'audit-curator',
+              'public_key_hex': encode_public_key(curator_pk),
+              'activation_height': 2,
+              'previous_registry_root': registry_root(ledger.registry_state_at(ledger.height())),
+              'network_id': identity.network_id,
+              'schema_version': 1,
+          }
+          body['governance_signatures'] = [
+              make_governance_signature(sk, body, i, network_id=identity.network_id).to_dict()
+              for i, sk in enumerate(privs)
+          ]
+          tx = {'type': 'governance', 'body': body}
+          block = ledger.mine_block_v2([tx])
+          if not ledger.add_block_v2(block):
+              raise SystemExit('production governance transaction was rejected')
+          if ledger.registry_state_at(ledger.height()).network_id != identity.network_id:
+              raise SystemExit('production registry state lost its network identity')
+          PY
+
+      - name: Format Rust verifier
+        run: cargo fmt --manifest-path rust-verifier/Cargo.toml
+
+      - name: Generate reproducible lockfile
+        run: cargo generate-lockfile --manifest-path rust-verifier/Cargo.toml
+
+      - name: Clippy
+        run: cargo clippy --manifest-path rust-verifier/Cargo.toml --all-targets --all-features -- -D warnings
+
+      - name: Test
+        run: cargo test --manifest-path rust-verifier/Cargo.toml --verbose
+
+      - name: Verify frozen vectors
+        run: cargo run --manifest-path rust-verifier/Cargo.toml -- verify test-vectors
+
+      - name: Prove verifier returns failure when a vector check fails
+        run: |
+          cp -R test-vectors /tmp/test-vectors-bad
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('/tmp/test-vectors-bad/sha256d.json')
+          data = json.loads(p.read_text())
+          data['expected_sha256d'] = '00' * 32
+          p.write_text(json.dumps(data))
+          PY
+          if cargo run --manifest-path rust-verifier/Cargo.toml -- verify /tmp/test-vectors-bad; then
+            echo "Verifier incorrectly returned success for a failed vector check"
+            exit 1
+          fi
+
+      - name: Run focused Python regression set
+        run: |
+          python -m pytest \
+            tests/test_pow_v2.py \
+            tests/test_codec.py \
+            tests/test_chain.py \
+            tests/test_governance.py \
+            tests/test_registry_state.py \
+            tests/test_phase8ma_consensus_validation_hardening.py \
+            tests/test_phase8mc_genesis_network_initialization.py \
+            -vv --tb=short
+
+      - name: Commit verified focused fixes and remove temporary workflow
+        run: |
+          rm .github/workflows/audit-rust-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add rust-verifier chainbreaker/block.py chainbreaker/chain.py chainbreaker/codec.py chainbreaker/governance.py .github/workflows/audit-rust-fix.yml
+          git diff --cached --check
+          git commit -m "fix sequential audit findings in verifier and consensus routing"
+          git push origin HEAD:repo-sequential-audit
