@@ -110,6 +110,48 @@ jobs:
               raise SystemExit('Ledger silently ignored an explicit mismatched network_id')
           PY
 
+      - name: Fix V2 governance schema network-id hardcoding
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('chainbreaker/codec.py')
+          s = p.read_text()
+          old = '''    if body.get("network_id", "chainbreaker-scripture-v2") != "chainbreaker-scripture-v2":\n        raise SchemaError("unsupported network_id")\n'''
+          new = '''    if not isinstance(body.get("network_id"), str) or not body["network_id"]:\n        raise SchemaError("network_id must be a non-empty string")\n'''
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif new not in s:
+              raise SystemExit('V2 governance network-id schema pattern not found')
+          p.write_text(s)
+          PY
+
+      - name: Verify V2 schema is identity-agnostic
+        run: |
+          python - <<'PY'
+          from chainbreaker.codec import SchemaError, validate_v2_transaction
+          tx = {
+              'type': 'governance',
+              'body': {
+                  'action': 'curator_register',
+                  'curator_id': 'alice',
+                  'public_key_hex': '11' * 32,
+                  'activation_height': 1,
+                  'previous_registry_root': '22' * 32,
+                  'network_id': 'chainbreaker-production-example',
+                  'schema_version': 1,
+                  'governance_signatures': [{'key_index': 0, 'signature': '33' * 64}],
+              },
+          }
+          validate_v2_transaction(tx)
+          tx['body']['network_id'] = ''
+          try:
+              validate_v2_transaction(tx)
+          except SchemaError:
+              pass
+          else:
+              raise SystemExit('empty network_id unexpectedly passed V2 schema validation')
+          PY
+
       - name: Format Rust verifier
         run: cargo fmt --manifest-path rust-verifier/Cargo.toml
 
@@ -146,7 +188,7 @@ jobs:
           rm .github/workflows/audit-rust-fix.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rust-verifier chainbreaker/block.py chainbreaker/chain.py .github/workflows/audit-rust-fix.yml
+          git add rust-verifier chainbreaker/block.py chainbreaker/chain.py chainbreaker/codec.py .github/workflows/audit-rust-fix.yml
           git diff --cached --check
-          git commit -m "fix sequential audit findings in verifier and ledger"
+          git commit -m "fix sequential audit findings in verifier and consensus paths"
           git push origin HEAD:repo-sequential-audit
