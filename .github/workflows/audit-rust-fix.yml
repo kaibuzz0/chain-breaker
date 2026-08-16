@@ -62,6 +62,24 @@ jobs:
           p.write_text(s)
           PY
 
+      - name: Fix Block V2 start_nonce handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('chainbreaker/block.py')
+          s = p.read_text()
+          old = '''    # ``start_nonce`` is accepted for API compatibility but is ignored: the\n\n    # search begins from the current header nonce so that wrapping behavior\n\n    # remains predictable for callers.\n'''
+          new = '''    if not (0 <= start_nonce <= 0xFFFFFFFFFFFFFFFF):\n\n        raise ValueError("start_nonce must fit in uint64")\n\n    header.nonce = start_nonce\n'''
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif new not in s:
+              raise SystemExit('mine_header_v2 start_nonce pattern not found')
+          p.write_text(s)
+          PY
+
+      - name: Verify Block V2 PoW start nonce behavior
+        run: python -m pytest tests/test_pow_v2.py::test_mine_header_v2_respects_start_nonce -vv --tb=short
+
       - name: Format Rust verifier
         run: cargo fmt --manifest-path rust-verifier/Cargo.toml
 
@@ -98,7 +116,7 @@ jobs:
           rm .github/workflows/audit-rust-fix.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rust-verifier .github/workflows/audit-rust-fix.yml
+          git add rust-verifier chainbreaker/block.py .github/workflows/audit-rust-fix.yml
           git diff --cached --check
-          git commit -m "fix Rust verifier failure propagation and dependencies"
+          git commit -m "fix Rust verifier and Block V2 audit findings"
           git push origin HEAD:repo-sequential-audit
