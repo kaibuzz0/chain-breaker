@@ -56,7 +56,6 @@ fn target_be_le_consistency() {
     assert_ne!(target, le);
 }
 
-
 #[test]
 fn network_identity_derives_registry_root_and_genesis() {
     let identity = chainbreaker_v2_verifier::network_identity::NetworkIdentity {
@@ -76,5 +75,5 @@ fn network_identity_derives_registry_root_and_genesis() {
 
     let (header, hash) = chainbreaker_v2_verifier::network_identity::derive_genesis(&identity).unwrap();
     assert_eq!(hex::encode(header.registry_root), "88d05861fa8524933091ced2b0c5eba0da2f58c7bd41e62bcdf36b8c7bc36a26");
-    assert_eq!(hex::encode(&hash), "0000618a74626b68a028978681ae432f7677f5dcc75e37ec9c05704d6d11b353");
+    assert_eq!(hex::encode(hash), "0000618a74626b68a028978681ae432f7677f5dcc75e37ec9c05704d6d11b353");
 }
