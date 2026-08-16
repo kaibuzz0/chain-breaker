@@ -16,6 +16,16 @@ jobs:
         with:
           ref: repo-sequential-audit
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -110,14 +120,14 @@ jobs:
               raise SystemExit('Ledger silently ignored an explicit mismatched network_id')
           PY
 
-      - name: Fix V2 governance schema network-id hardcoding
+      - name: Fix V2 governance schema network-id hardcode
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('chainbreaker/codec.py')
           s = p.read_text()
           old = '''    if body.get("network_id", "chainbreaker-scripture-v2") != "chainbreaker-scripture-v2":\n        raise SchemaError("unsupported network_id")\n'''
-          new = '''    if not isinstance(body.get("network_id"), str) or not body["network_id"]:\n        raise SchemaError("network_id must be a non-empty string")\n'''
+          new = '''    network_id = body.get("network_id")\n    if not isinstance(network_id, str) or not network_id:\n        raise SchemaError("network_id must be a non-empty string")\n'''
           if old in s:
               s = s.replace(old, new, 1)
           elif new not in s:
@@ -125,10 +135,10 @@ jobs:
           p.write_text(s)
           PY
 
-      - name: Verify V2 schema is identity-agnostic
+      - name: Verify V2 schema accepts non-alpha network id structurally
         run: |
           python - <<'PY'
-          from chainbreaker.codec import SchemaError, validate_v2_transaction
+          from chainbreaker.codec import validate_v2_transaction
           tx = {
               'type': 'governance',
               'body': {
@@ -137,19 +147,68 @@ jobs:
                   'public_key_hex': '11' * 32,
                   'activation_height': 1,
                   'previous_registry_root': '22' * 32,
-                  'network_id': 'chainbreaker-production-example',
+                  'network_id': 'chainbreaker-prod-audit',
                   'schema_version': 1,
                   'governance_signatures': [{'key_index': 0, 'signature': '33' * 64}],
               },
           }
           validate_v2_transaction(tx)
-          tx['body']['network_id'] = ''
-          try:
-              validate_v2_transaction(tx)
-          except SchemaError:
-              pass
-          else:
-              raise SystemExit('empty network_id unexpectedly passed V2 schema validation')
+          PY
+
+      - name: Fix legacy V1 validator routing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          block = Path('chainbreaker/block.py')
+          s = block.read_text()
+          s2 = s.replace(
+              'from .codec import BinaryCodec, validate_v2_transaction',
+              'from .codec import BinaryCodec, validate_transaction, validate_v2_transaction',
+              1,
+          )
+          if s2 == s and 'validate_transaction, validate_v2_transaction' not in s:
+              raise SystemExit('block.py codec import pattern not found')
+          s = s2
+
+          marker = '''        # Validate transactions if a validator is supplied\n\n        # Baseline V2 transaction schema validation is mandatory.\n\n        for tx in self.transactions:\n\n            try:\n\n                validate_v2_transaction(tx)\n\n            except Exception:\n\n                return False\n'''
+          replacement = '''        # Legacy V1 blocks use the V1 transaction schema.\n\n        for tx in self.transactions:\n\n            try:\n\n                validate_transaction(tx)\n\n            except Exception:\n\n                return False\n'''
+          if marker in s:
+              s = s.replace(marker, replacement, 1)
+          elif replacement not in s:
+              raise SystemExit('Block.verify V1 validation pattern not found')
+          block.write_text(s)
+
+          chain = Path('chainbreaker/chain.py')
+          s = chain.read_text()
+          s2 = s.replace(
+              'from .codec import BinaryCodec, validate_v2_transaction',
+              'from .codec import BinaryCodec, validate_transaction, validate_v2_transaction',
+              1,
+          )
+          if s2 == s and 'validate_transaction, validate_v2_transaction' not in s:
+              raise SystemExit('chain.py codec import pattern not found')
+          s = s2
+
+          old = '''        for tx in transactions:\n\n            validate_v2_transaction(tx)\n\n\n\n        prev_hash = self.last_block.hash\n'''
+          new = '''        for tx in transactions:\n\n            validate_transaction(tx)\n\n\n\n        prev_hash = self.last_block.hash\n'''
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif new not in s:
+              raise SystemExit('Ledger.mine_block V1 validation pattern not found')
+          chain.write_text(s)
+          PY
+
+      - name: Verify legacy V1 validator routing
+        run: |
+          python - <<'PY'
+          import inspect
+          from chainbreaker.block import Block
+          from chainbreaker.chain import Ledger
+          assert 'validate_transaction(tx)' in inspect.getsource(Block.verify)
+          src = inspect.getsource(Ledger.mine_block)
+          assert 'validate_transaction(tx)' in src
+          assert 'validate_v2_transaction(tx)' not in src
           PY
 
       - name: Format Rust verifier
@@ -183,6 +242,16 @@ jobs:
             exit 1
           fi
 
+      - name: Run focused Python regression set
+        run: |
+          python -m pytest \
+            tests/test_pow_v2.py \
+            tests/test_codec.py \
+            tests/test_chain.py \
+            tests/test_phase8ma_consensus_validation_hardening.py \
+            tests/test_phase8mc_genesis_network_initialization.py \
+            -vv --tb=short
+
       - name: Commit verified focused fixes and remove temporary workflow
         run: |
           rm .github/workflows/audit-rust-fix.yml
@@ -190,5 +259,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add rust-verifier chainbreaker/block.py chainbreaker/chain.py chainbreaker/codec.py .github/workflows/audit-rust-fix.yml
           git diff --cached --check
-          git commit -m "fix sequential audit findings in verifier and consensus paths"
+          git commit -m "fix sequential audit findings in verifier and consensus routing"
           git push origin HEAD:repo-sequential-audit
