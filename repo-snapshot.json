@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-16T23:59:10Z",
+  "source_commit": "e71c1370d4509a5bfb064c99b0c5ae0d887f6ea7",
+  "repo": {
+    "id": "chain-breaker",
+    "full_name": "kaibuzz0/chain-breaker",
+    "url": "https://github.com/kaibuzz0/chain-breaker",
+    "default_branch": "main"
+  },
+  "stats": {
+    "tracked_files": 330,
+    "python_files": 157,
+    "javascript_typescript_files": 0,
+    "workflow_files": 7,
+    "test_files": 89
+  },
+  "tools": [],
+  "toolsets": [],
+  "cases": [],
+  "opportunities": [],
+  "intelligence": [],
+  "sources": [],
+  "prompts": [],
+  "evidence": [],
+  "agent_ops": {},
+  "activity": [
+    {
+      "id": "e71c1370d4509a5bfb064c99b0c5ae0d887f6ea7",
+      "type": "commit",
+      "title": "Connect repository to GitHub Command Site",
+      "timestamp": "2026-08-16T18:58:59-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/e71c1370d4509a5bfb064c99b0c5ae0d887f6ea7"
+    },
+    {
+      "id": "74bf4cd16fe955278253b44e17df67d509192e80",
+      "type": "commit",
+      "title": "Merge pull request #51 from kaibuzz0/ci-detailed-test-diagnostics",
+      "timestamp": "2026-08-16T11:20:10-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/74bf4cd16fe955278253b44e17df67d509192e80"
+    },
+    {
+      "id": "2a67fd34f799a9cc36028087064a90a69e5debdd",
+      "type": "commit",
+      "title": "Merge pull request #53 from kaibuzz0/repo-sequential-audit",
+      "timestamp": "2026-08-16T11:19:52-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/2a67fd34f799a9cc36028087064a90a69e5debdd"
+    },
+    {
+      "id": "ed378f2236dd6560e0d3f8d8db6de81549a8a841",
+      "type": "commit",
+      "title": "correct focused registry audit verification",
+      "timestamp": "2026-08-16T11:06:25-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/ed378f2236dd6560e0d3f8d8db6de81549a8a841"
+    },
+    {
+      "id": "d29a0827ebbe3cc65630ecd9536b3ae7329194b7",
+      "type": "commit",
+      "title": "fix governance network identity propagation",
+      "timestamp": "2026-08-16T16:02:32Z",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/d29a0827ebbe3cc65630ecd9536b3ae7329194b7"
+    },
+    {
+      "id": "6f3dc25f7a2a0b0efc32ec95e62b8fca931d496e",
+      "type": "commit",
+      "title": "add focused governance network identity repair",
+      "timestamp": "2026-08-16T11:02:13-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/6f3dc25f7a2a0b0efc32ec95e62b8fca931d496e"
+    },
+    {
+      "id": "a3cd28de597aab55378f92d5a342a9e2968afe56",
+      "type": "commit",
+      "title": "add focused registry-state audit repair",
+      "timestamp": "2026-08-16T10:53:19-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/a3cd28de597aab55378f92d5a342a9e2968afe56"
+    },
+    {
+      "id": "202485e9a446c7d0edd5e1c07926ea16edfc6e76",
+      "type": "commit",
+      "title": "extend audit to governance network identity propagation",
+      "timestamp": "2026-08-16T10:45:28-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/202485e9a446c7d0edd5e1c07926ea16edfc6e76"
+    },
+    {
+      "id": "8d6539f9bd46d4c143f6edd6b7d35ae9b4b9f0c5",
+      "type": "commit",
+      "title": "fix focused audit Python test environment",
+      "timestamp": "2026-08-16T10:43:51-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/8d6539f9bd46d4c143f6edd6b7d35ae9b4b9f0c5"
+    },
+    {
+      "id": "d52bb7158ea16cf772889d99096988ea07641d29",
+      "type": "commit",
+      "title": "extend audit to V2 network-aware schema validation",
+      "timestamp": "2026-08-16T10:39:52-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/d52bb7158ea16cf772889d99096988ea07641d29"
+    }
+  ],
+  "links": [
+    {
+      "id": "github",
+      "name": "GitHub repository",
+      "url": "https://github.com/kaibuzz0/chain-breaker"
+    },
+    {
+      "id": "actions",
+      "name": "GitHub Actions",
+      "url": "https://github.com/kaibuzz0/chain-breaker/actions"
+    },
+    {
+      "id": "issues",
+      "name": "Issues",
+      "url": "https://github.com/kaibuzz0/chain-breaker/issues"
+    }
+  ]
+}
