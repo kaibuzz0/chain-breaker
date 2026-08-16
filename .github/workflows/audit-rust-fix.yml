@@ -211,6 +211,164 @@ jobs:
           assert 'validate_v2_transaction(tx)' not in src
           PY
 
+      - name: Fix governance network identity propagation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('chainbreaker/governance.py')
+          s = p.read_text()
+
+          signatures = {
+              'CuratorRegisterTx': 'def from_dict(cls, data: dict[str, Any], expected_network_id: str = NETWORK_ID) -> CuratorRegisterTx:',
+              'CuratorRotateTx': 'def from_dict(cls, data: dict[str, Any], expected_network_id: str = NETWORK_ID) -> CuratorRotateTx:',
+              'CuratorRevokeTx': 'def from_dict(cls, data: dict[str, Any], expected_network_id: str = NETWORK_ID) -> CuratorRevokeTx:',
+          }
+          for cls_name, new_sig in signatures.items():
+              old_sig = f'def from_dict(cls, data: dict[str, Any]) -> {cls_name}:'
+              if old_sig in s:
+                  s = s.replace(old_sig, new_sig, 1)
+              elif new_sig not in s:
+                  raise SystemExit(f'{cls_name} from_dict signature not found')
+
+          old_check = '''        if data.get("network_id", NETWORK_ID) != NETWORK_ID:\n            raise GovernanceError("wrong network_id")\n'''
+          new_check = '''        network_id = data.get("network_id", NETWORK_ID)\n        if network_id != expected_network_id:\n            raise GovernanceError("wrong network_id")\n'''
+          count = s.count(old_check)
+          if count:
+              if count != 3:
+                  raise SystemExit(f'expected 3 governance network-id checks, found {count}')
+              s = s.replace(old_check, new_check)
+          elif s.count(new_check) != 3:
+              raise SystemExit('governance network-id checks not found')
+
+          # Preserve the parsed network id on each transaction object.
+          register_old = '''            governance_signatures=_require_signatures(data["governance_signatures"]),\n        )\n\n\n@dataclass(frozen=True)\nclass CuratorRotateTx:'''
+          register_new = '''            governance_signatures=_require_signatures(data["governance_signatures"]),\n            network_id=network_id,\n        )\n\n\n@dataclass(frozen=True)\nclass CuratorRotateTx:'''
+          if register_old in s:
+              s = s.replace(register_old, register_new, 1)
+          elif register_new not in s:
+              raise SystemExit('register network-id return pattern not found')
+
+          rotate_old = '''            curator_signature_hex=_require_hex_hash(data["curator_signature"], "curator_signature", 128),\n        )\n\n\n@dataclass(frozen=True)\nclass CuratorRevokeTx:'''
+          rotate_new = '''            curator_signature_hex=_require_hex_hash(data["curator_signature"], "curator_signature", 128),\n            network_id=network_id,\n        )\n\n\n@dataclass(frozen=True)\nclass CuratorRevokeTx:'''
+          if rotate_old in s:
+              s = s.replace(rotate_old, rotate_new, 1)
+          elif rotate_new not in s:
+              raise SystemExit('rotate network-id return pattern not found')
+
+          revoke_old = '''            curator_signature_hex=_require_hex_hash(data["curator_signature"], "curator_signature", 128),\n        )\n\n\nclass GovernanceContext:'''
+          revoke_new = '''            curator_signature_hex=_require_hex_hash(data["curator_signature"], "curator_signature", 128),\n            network_id=network_id,\n        )\n\n\nclass GovernanceContext:'''
+          if revoke_old in s:
+              s = s.replace(revoke_old, revoke_new, 1)
+          elif revoke_new not in s:
+              raise SystemExit('revoke network-id return pattern not found')
+
+          ctx_old = '    def __init__(self, public_keys_hex: list[str], threshold: int):\n'
+          ctx_new = '    def __init__(self, public_keys_hex: list[str], threshold: int, network_id: str = NETWORK_ID):\n'
+          if ctx_old in s:
+              s = s.replace(ctx_old, ctx_new, 1)
+          elif ctx_new not in s:
+              raise SystemExit('GovernanceContext signature not found')
+
+          set_old = '''        self.public_keys_hex = tuple(public_keys_hex)\n        self.threshold = threshold\n'''
+          set_new = '''        if not isinstance(network_id, str) or not network_id:\n            raise GovernanceError("network_id must be a non-empty string")\n        self.public_keys_hex = tuple(public_keys_hex)\n        self.threshold = threshold\n        self.network_id = network_id\n'''
+          if set_old in s:
+              s = s.replace(set_old, set_new, 1)
+          elif set_new not in s:
+              raise SystemExit('GovernanceContext assignment block not found')
+
+          verify_old = '''            "network_id": NETWORK_ID,\n            "version": PROTOCOL_VERSION,\n            "type": "registry",\n'''
+          verify_new = '''            "network_id": self.network_id,\n            "version": PROTOCOL_VERSION,\n            "type": "registry",\n'''
+          if verify_old in s:
+              s = s.replace(verify_old, verify_new, 1)
+          elif verify_new not in s:
+              raise SystemExit('GovernanceContext signed network-id pattern not found')
+
+          gm_old = 'def governance_message(body_dict: dict[str, Any]) -> bytes:\n'
+          gm_new = 'def governance_message(body_dict: dict[str, Any], network_id: str = NETWORK_ID) -> bytes:\n'
+          if gm_old in s:
+              s = s.replace(gm_old, gm_new, 1)
+          elif gm_new not in s:
+              raise SystemExit('governance_message signature not found')
+
+          msg_old = '''        "network_id": NETWORK_ID,\n        "version": PROTOCOL_VERSION,\n        "type": "registry",\n'''
+          msg_new = '''        "network_id": network_id,\n        "version": PROTOCOL_VERSION,\n        "type": "registry",\n'''
+          if msg_old in s:
+              s = s.replace(msg_old, msg_new, 1)
+          elif msg_new not in s:
+              raise SystemExit('governance_message network-id pattern not found')
+
+          sig_old = '''    body_dict: dict[str, Any],\n    key_index: int,\n) -> GovernanceSignature:\n'''
+          sig_new = '''    body_dict: dict[str, Any],\n    key_index: int,\n    network_id: str = NETWORK_ID,\n) -> GovernanceSignature:\n'''
+          if sig_old in s:
+              s = s.replace(sig_old, sig_new, 1)
+          elif sig_new not in s:
+              raise SystemExit('make_governance_signature signature not found')
+
+          call_old = '    msg = governance_message(body_dict)\n'
+          call_new = '    msg = governance_message(body_dict, network_id=network_id)\n'
+          if call_old in s:
+              s = s.replace(call_old, call_new, 1)
+          elif call_new not in s:
+              raise SystemExit('make_governance_signature call not found')
+
+          p.write_text(s)
+
+          chain = Path('chainbreaker/chain.py')
+          s = chain.read_text()
+          old_ctx = '        self._governance_context = GovernanceContext(self.governance_keys, self.governance_threshold)\n'
+          new_ctx = '        self._governance_context = GovernanceContext(self.governance_keys, self.governance_threshold, network_id=self.network_id)\n'
+          if old_ctx in s:
+              s = s.replace(old_ctx, new_ctx, 1)
+          elif new_ctx not in s:
+              raise SystemExit('Ledger GovernanceContext pattern not found')
+
+          for cls_name in ('CuratorRegisterTx', 'CuratorRotateTx', 'CuratorRevokeTx'):
+              old = f'            return {cls_name}.from_dict(body)\n'
+              new = f'            return {cls_name}.from_dict(body, expected_network_id=self.network_id)\n'
+              if old in s:
+                  s = s.replace(old, new, 1)
+              elif new not in s:
+                  raise SystemExit(f'Ledger {cls_name} parser pattern not found')
+          chain.write_text(s)
+          PY
+
+      - name: Verify production governance transition uses production network id
+        run: |
+          python - <<'PY'
+          from chainbreaker.chain import Ledger
+          from chainbreaker.crypto import encode_public_key, generate_keypair
+          from chainbreaker.governance import make_governance_signature
+          from chainbreaker.network_identity import derive_network_identity
+          from chainbreaker.registry_state import registry_root
+
+          pairs = [generate_keypair() for _ in range(3)]
+          privs = [p[0] for p in pairs]
+          pubs = [encode_public_key(p[1]) for p in pairs]
+          identity = derive_network_identity('chainbreaker-prod-audit', pubs, 2)
+          ledger = Ledger(network_identity=identity)
+          _, curator_pk = generate_keypair()
+          body = {
+              'action': 'curator_register',
+              'curator_id': 'audit-curator',
+              'public_key_hex': encode_public_key(curator_pk),
+              'activation_height': 2,
+              'previous_registry_root': registry_root(ledger.registry_state_at(ledger.height())),
+              'network_id': identity.network_id,
+              'schema_version': 1,
+          }
+          body['governance_signatures'] = [
+              make_governance_signature(sk, body, i, network_id=identity.network_id).to_dict()
+              for i, sk in enumerate(privs)
+          ]
+          tx = {'type': 'governance', 'body': body}
+          block = ledger.mine_block_v2([tx])
+          if not ledger.add_block_v2(block):
+              raise SystemExit('production governance transaction was rejected')
+          if ledger.registry_state_at(ledger.height()).network_id != identity.network_id:
+              raise SystemExit('production registry state lost its network identity')
+          PY
+
       - name: Format Rust verifier
         run: cargo fmt --manifest-path rust-verifier/Cargo.toml
 
@@ -248,6 +406,8 @@ jobs:
             tests/test_pow_v2.py \
             tests/test_codec.py \
             tests/test_chain.py \
+            tests/test_governance.py \
+            tests/test_registry_state.py \
             tests/test_phase8ma_consensus_validation_hardening.py \
             tests/test_phase8mc_genesis_network_initialization.py \
             -vv --tb=short
@@ -257,7 +417,7 @@ jobs:
           rm .github/workflows/audit-rust-fix.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rust-verifier chainbreaker/block.py chainbreaker/chain.py chainbreaker/codec.py .github/workflows/audit-rust-fix.yml
+          git add rust-verifier chainbreaker/block.py chainbreaker/chain.py chainbreaker/codec.py chainbreaker/governance.py .github/workflows/audit-rust-fix.yml
           git diff --cached --check
           git commit -m "fix sequential audit findings in verifier and consensus routing"
           git push origin HEAD:repo-sequential-audit
