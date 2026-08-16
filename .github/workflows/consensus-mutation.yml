@@ -48,6 +48,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload mutation results artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: consensus-mutation-results
@@ -57,6 +58,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload raw mutation log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: consensus-mutation-logs
@@ -65,13 +67,16 @@ jobs:
             mutmut.log
           if-no-files-found: ignore
 
-      - name: Preserve runner exit status
-        run: |
-          echo "targeted_exit=${{ steps.targeted.outcome }}" >> "$GITHUB_OUTPUT"
-
       - name: Report campaign status
+        if: always()
         run: |
           echo "Targeted mutation campaign finished with outcome: ${{ steps.targeted.outcome }}"
           if [ -f docs/CONSENSUS_MUTATION_RESULTS.json ]; then
-            python -c "import json,sys; d=json.load(open('docs/CONSENSUS_MUTATION_RESULTS.json')); print(json.dumps({k:v for k,v in d.items() if k!='records'}, indent=2))"
+            python -c "import json; d=json.load(open('docs/CONSENSUS_MUTATION_RESULTS.json')); print(json.dumps({k:v for k,v in d.items() if k!='records'}, indent=2))"
           fi
+
+      - name: Fail workflow if mutation campaign failed
+        if: steps.targeted.outcome != 'success'
+        run: |
+          echo "Mutation campaign failed with outcome: ${{ steps.targeted.outcome }}" >&2
+          exit 1
