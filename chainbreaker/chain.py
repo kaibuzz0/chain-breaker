@@ -149,7 +149,7 @@ class Ledger:
 
         self.governance_threshold = governance_threshold if governance_threshold is not None else network_identity.governance_threshold
 
-        self._governance_context = GovernanceContext(self.governance_keys, self.governance_threshold)
+        self._governance_context = GovernanceContext(self.governance_keys, self.governance_threshold, network_id=self.network_id)
 
         self.registry_states: dict[int, RegistryState] = {}
 
@@ -365,15 +365,15 @@ class Ledger:
 
         if action == "curator_register":
 
-            return CuratorRegisterTx.from_dict(body)
+            return CuratorRegisterTx.from_dict(body, expected_network_id=self.network_id)
 
         if action == "curator_rotate":
 
-            return CuratorRotateTx.from_dict(body)
+            return CuratorRotateTx.from_dict(body, expected_network_id=self.network_id)
 
         if action == "curator_revoke":
 
-            return CuratorRevokeTx.from_dict(body)
+            return CuratorRevokeTx.from_dict(body, expected_network_id=self.network_id)
 
         return None
 
