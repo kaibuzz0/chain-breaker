@@ -68,7 +68,9 @@ jobs:
           from pathlib import Path
           p = Path('chainbreaker/block.py')
           s = p.read_text()
-          old = '''    # ``start_nonce`` is accepted for API compatibility but is ignored: the\n\n    # search begins from the current header nonce so that wrapping behavior\n\n    # remains predictable for callers.\n'''
+          old = '''    # ``start_nonce`` is accepted for API compatibility but is ignored:\n\n    # search begins from the current header nonce so that wrapping behavior\n\n    # remains predictable for callers.\n'''
+          if old not in s:
+              old = '''    # ``start_nonce`` is accepted for API compatibility but is ignored: the\n\n    # search begins from the current header nonce so that wrapping behavior\n\n    # remains predictable for callers.\n'''
           new = '''    if not (0 <= start_nonce <= 0xFFFFFFFFFFFFFFFF):\n\n        raise ValueError("start_nonce must fit in uint64")\n\n    header.nonce = start_nonce\n'''
           if old in s:
               s = s.replace(old, new, 1)
@@ -79,6 +81,34 @@ jobs:
 
       - name: Verify Block V2 PoW start nonce behavior
         run: python -m pytest tests/test_pow_v2.py::test_mine_header_v2_respects_start_nonce -vv --tb=short
+
+      - name: Fix Ledger network_id mismatch handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('chainbreaker/chain.py')
+          s = p.read_text()
+          anchor = '''                network_identity = derive_test_network_identity(governance_keys, threshold)\n\n        if chain is None:\n'''
+          replacement = '''                network_identity = derive_test_network_identity(governance_keys, threshold)\n\n        if network_id is not None and network_id != network_identity.network_id:\n\n            raise NetworkIdentityError(\n\n                f"network_id {network_id!r} does not match network identity "\n\n                f"{network_identity.network_id!r}"\n\n            )\n\n        if chain is None:\n'''
+          if anchor in s:
+              s = s.replace(anchor, replacement, 1)
+          elif replacement not in s:
+              raise SystemExit('Ledger network_id guard insertion point not found')
+          p.write_text(s)
+          PY
+
+      - name: Verify Ledger rejects silently ignored network_id
+        run: |
+          python - <<'PY'
+          from chainbreaker.chain import Ledger
+          from chainbreaker.network_identity import NetworkIdentityError
+          try:
+              Ledger(network_id='wrong-network')
+          except NetworkIdentityError:
+              pass
+          else:
+              raise SystemExit('Ledger silently ignored an explicit mismatched network_id')
+          PY
 
       - name: Format Rust verifier
         run: cargo fmt --manifest-path rust-verifier/Cargo.toml
@@ -116,7 +146,7 @@ jobs:
           rm .github/workflows/audit-rust-fix.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rust-verifier chainbreaker/block.py .github/workflows/audit-rust-fix.yml
+          git add rust-verifier chainbreaker/block.py chainbreaker/chain.py .github/workflows/audit-rust-fix.yml
           git diff --cached --check
-          git commit -m "fix Rust verifier and Block V2 audit findings"
+          git commit -m "fix sequential audit findings in verifier and ledger"
           git push origin HEAD:repo-sequential-audit
