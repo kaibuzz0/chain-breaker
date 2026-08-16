@@ -77,3 +77,35 @@ fn network_identity_derives_registry_root_and_genesis() {
     assert_eq!(hex::encode(header.registry_root), "88d05861fa8524933091ced2b0c5eba0da2f58c7bd41e62bcdf36b8c7bc36a26");
     assert_eq!(hex::encode(hash), "0000618a74626b68a028978681ae432f7677f5dcc75e37ec9c05704d6d11b353");
 }
+
+#[test]
+fn network_identity_from_json_sorts_governance_keys() {
+    let value = serde_json::json!({
+        "network_id": "sort-test",
+        "kind": "test",
+        "governance_keys": [
+            "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "governance_threshold": 1,
+        "genesis_timestamp": 1704067200
+    });
+    let identity = chainbreaker_v2_verifier::network_identity::NetworkIdentity::from_json(&value).unwrap();
+    assert_eq!(identity.governance_keys[0], "0000000000000000000000000000000000000000000000000000000000000000");
+    assert_eq!(identity.governance_keys[1], "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+}
+
+#[test]
+fn network_identity_rejects_threshold_overflow() {
+    let value = serde_json::json!({
+        "network_id": "threshold-test",
+        "kind": "test",
+        "governance_keys": [
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "governance_threshold": 256,
+        "genesis_timestamp": 1704067200
+    });
+    let result = chainbreaker_v2_verifier::network_identity::NetworkIdentity::from_json(&value);
+    assert!(result.is_err());
+}
