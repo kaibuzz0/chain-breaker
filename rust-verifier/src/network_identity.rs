@@ -1,4 +1,4 @@
-use crate::{sha256_single, HeaderV2, Result, VerifyError, HASH_LEN, double_sha256};
+use crate::{double_sha256, sha256_single, HeaderV2, Result, VerifyError, HASH_LEN};
 
 /// Network identity parameters for a Protocol V2 network.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,7 +21,7 @@ impl NetworkIdentity {
             .as_str()
             .ok_or_else(|| VerifyError::Protocol("missing kind".into()))?
             .to_string();
-        let governance_keys: Vec<String> = value["governance_keys"]
+        let mut governance_keys: Vec<String> = value["governance_keys"]
             .as_array()
             .ok_or_else(|| VerifyError::Protocol("missing governance_keys".into()))?
             .iter()
@@ -31,9 +31,41 @@ impl NetworkIdentity {
                     .map(|s| s.to_string())
             })
             .collect::<Result<Vec<String>>>()?;
-        let governance_threshold = value["governance_threshold"]
+
+        if governance_keys.is_empty() {
+            return Err(VerifyError::Protocol(
+                "governance_keys must contain at least one key".into(),
+            ));
+        }
+        for key in &governance_keys {
+            if key.len() != 64 {
+                return Err(VerifyError::Protocol(format!(
+                    "governance key must be 64 hex characters: {key}"
+                )));
+            }
+            let decoded = hex::decode(key)?;
+            if decoded.len() != 32 {
+                return Err(VerifyError::Protocol(format!(
+                    "governance key must decode to 32 bytes: {key}"
+                )));
+            }
+        }
+        // Python's genesis path canonicalizes governance keys lexicographically.
+        governance_keys.sort();
+
+        let threshold_u64 = value["governance_threshold"]
             .as_u64()
-            .ok_or_else(|| VerifyError::Protocol("missing governance_threshold".into()))? as u8;
+            .ok_or_else(|| VerifyError::Protocol("missing governance_threshold".into()))?;
+        let governance_threshold = u8::try_from(threshold_u64).map_err(|_| {
+            VerifyError::Protocol("governance_threshold does not fit in one byte".into())
+        })?;
+        if governance_threshold == 0 || usize::from(governance_threshold) > governance_keys.len() {
+            return Err(VerifyError::Protocol(format!(
+                "governance_threshold must satisfy 1 <= threshold <= {}",
+                governance_keys.len()
+            )));
+        }
+
         let genesis_timestamp = value["genesis_timestamp"]
             .as_u64()
             .ok_or_else(|| VerifyError::Protocol("missing genesis_timestamp".into()))?;
@@ -94,8 +126,8 @@ pub fn serialize_genesis_registry_state(identity: &NetworkIdentity) -> Vec<u8> {
     parts.extend_from_slice(&encode_str(&identity.network_id));
     parts.extend_from_slice(&encode_varint(identity.governance_keys.len() as u64));
     for key_hex in &identity.governance_keys {
-        let key_bytes = hex::decode(key_hex).expect("valid hex key");
-        assert_eq!(key_bytes.len(), 32, "governance key must be 32 bytes");
+        let key_bytes = hex::decode(key_hex).expect("validated governance key hex");
+        debug_assert_eq!(key_bytes.len(), 32);
         parts.extend_from_slice(&key_bytes);
     }
     parts.push(identity.governance_threshold);
@@ -111,7 +143,7 @@ pub fn registry_root(identity: &NetworkIdentity) -> [u8; HASH_LEN] {
 /// Convert a 64-char hex target to a 32-byte BE array.
 fn hex_target_to_bytes(hex: &str) -> [u8; HASH_LEN] {
     let mut out = [0u8; HASH_LEN];
-    hex::decode_to_slice(hex, &mut out).expect("valid target hex");
+    hex::decode_to_slice(hex, &mut out).expect("hard-coded target must be valid hex");
     out
 }
 
