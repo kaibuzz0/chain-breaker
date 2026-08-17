@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-16T23:59:10Z",
-  "source_commit": "e71c1370d4509a5bfb064c99b0c5ae0d887f6ea7",
+  "generated_at": "2026-08-17T00:19:05Z",
+  "source_commit": "bf17202ae0acf9c9e10fe54e5d48ed68c442d260",
   "repo": {
     "id": "chain-breaker",
     "full_name": "kaibuzz0/chain-breaker",
@@ -15,6 +15,1885 @@
     "workflow_files": 7,
     "test_files": 89
   },
+  "repository_tree": {
+    "total_files": 330,
+    "total_directories": 33,
+    "files_truncated": false,
+    "directories_truncated": false,
+    "top_level": [
+      ".github",
+      ".gitignore",
+      ".mutmut.ini",
+      "FINAL_ADVERSARIAL_REVIEW.md",
+      "FINAL_CONSENSUS_REVIEW.md",
+      "POST_REVIEW_HARDENING_REPORT.md",
+      "README.md",
+      "REVIEW_GAPS_REPORT.md",
+      "benchmarks",
+      "chainbreaker",
+      "docs",
+      "pyproject.toml",
+      "requirements.txt",
+      "rust-verifier",
+      "samples",
+      "scripts",
+      "storage-vectors",
+      "test-vectors",
+      "tests"
+    ],
+    "directories": [
+      {
+        "path": ".github",
+        "name": ".github",
+        "depth": 1,
+        "file_count": 7
+      },
+      {
+        "path": ".github/workflows",
+        "name": "workflows",
+        "depth": 2,
+        "file_count": 7
+      },
+      {
+        "path": "benchmarks",
+        "name": "benchmarks",
+        "depth": 1,
+        "file_count": 14
+      },
+      {
+        "path": "benchmarks/results",
+        "name": "results",
+        "depth": 2,
+        "file_count": 12
+      },
+      {
+        "path": "chainbreaker",
+        "name": "chainbreaker",
+        "depth": 1,
+        "file_count": 64
+      },
+      {
+        "path": "chainbreaker/network",
+        "name": "network",
+        "depth": 2,
+        "file_count": 42
+      },
+      {
+        "path": "chainbreaker/network/discovery",
+        "name": "discovery",
+        "depth": 3,
+        "file_count": 5
+      },
+      {
+        "path": "chainbreaker/network/gossip",
+        "name": "gossip",
+        "depth": 3,
+        "file_count": 4
+      },
+      {
+        "path": "chainbreaker/network/relay",
+        "name": "relay",
+        "depth": 3,
+        "file_count": 6
+      },
+      {
+        "path": "chainbreaker/network/socket",
+        "name": "socket",
+        "depth": 3,
+        "file_count": 6
+      },
+      {
+        "path": "chainbreaker/network/sync",
+        "name": "sync",
+        "depth": 3,
+        "file_count": 5
+      },
+      {
+        "path": "chainbreaker/network/transport",
+        "name": "transport",
+        "depth": 3,
+        "file_count": 9
+      },
+      {
+        "path": "chainbreaker/storage",
+        "name": "storage",
+        "depth": 2,
+        "file_count": 7
+      },
+      {
+        "path": "docs",
+        "name": "docs",
+        "depth": 1,
+        "file_count": 116
+      },
+      {
+        "path": "docs/adr",
+        "name": "adr",
+        "depth": 2,
+        "file_count": 16
+      },
+      {
+        "path": "docs/releases",
+        "name": "releases",
+        "depth": 2,
+        "file_count": 8
+      },
+      {
+        "path": "docs/releases/v2.0.0-alpha",
+        "name": "v2.0.0-alpha",
+        "depth": 3,
+        "file_count": 8
+      },
+      {
+        "path": "rust-verifier",
+        "name": "rust-verifier",
+        "depth": 1,
+        "file_count": 7
+      },
+      {
+        "path": "rust-verifier/src",
+        "name": "src",
+        "depth": 2,
+        "file_count": 3
+      },
+      {
+        "path": "rust-verifier/tests",
+        "name": "tests",
+        "depth": 2,
+        "file_count": 1
+      },
+      {
+        "path": "samples",
+        "name": "samples",
+        "depth": 1,
+        "file_count": 2
+      },
+      {
+        "path": "scripts",
+        "name": "scripts",
+        "depth": 1,
+        "file_count": 2
+      },
+      {
+        "path": "storage-vectors",
+        "name": "storage-vectors",
+        "depth": 1,
+        "file_count": 10
+      },
+      {
+        "path": "test-vectors",
+        "name": "test-vectors",
+        "depth": 1,
+        "file_count": 10
+      },
+      {
+        "path": "tests",
+        "name": "tests",
+        "depth": 1,
+        "file_count": 89
+      },
+      {
+        "path": "tests/network",
+        "name": "network",
+        "depth": 2,
+        "file_count": 46
+      },
+      {
+        "path": "tests/network/adversarial",
+        "name": "adversarial",
+        "depth": 3,
+        "file_count": 6
+      },
+      {
+        "path": "tests/network/discovery",
+        "name": "discovery",
+        "depth": 3,
+        "file_count": 3
+      },
+      {
+        "path": "tests/network/gossip",
+        "name": "gossip",
+        "depth": 3,
+        "file_count": 3
+      },
+      {
+        "path": "tests/network/relay",
+        "name": "relay",
+        "depth": 3,
+        "file_count": 5
+      },
+      {
+        "path": "tests/network/socket",
+        "name": "socket",
+        "depth": 3,
+        "file_count": 8
+      },
+      {
+        "path": "tests/network/sync",
+        "name": "sync",
+        "depth": 3,
+        "file_count": 5
+      },
+      {
+        "path": "tests/network/transport",
+        "name": "transport",
+        "depth": 3,
+        "file_count": 10
+      }
+    ],
+    "files": [
+      {
+        "path": ".github/workflows/audit-registry-fix-v2.yml",
+        "name": "audit-registry-fix-v2.yml",
+        "extension": ".yml"
+      },
+      {
+        "path": ".github/workflows/audit-registry-fix.yml",
+        "name": "audit-registry-fix.yml",
+        "extension": ".yml"
+      },
+      {
+        "path": ".github/workflows/audit-rust-fix.yml",
+        "name": "audit-rust-fix.yml",
+        "extension": ".yml"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "name": "ci.yml",
+        "extension": ".yml"
+      },
+      {
+        "path": ".github/workflows/command-site-snapshot.yml",
+        "name": "command-site-snapshot.yml",
+        "extension": ".yml"
+      },
+      {
+        "path": ".github/workflows/consensus-mutation.yml",
+        "name": "consensus-mutation.yml",
+        "extension": ".yml"
+      },
+      {
+        "path": ".github/workflows/rust-verifier.yml",
+        "name": "rust-verifier.yml",
+        "extension": ".yml"
+      },
+      {
+        "path": ".gitignore",
+        "name": ".gitignore",
+        "extension": ""
+      },
+      {
+        "path": ".mutmut.ini",
+        "name": ".mutmut.ini",
+        "extension": ".ini"
+      },
+      {
+        "path": "FINAL_ADVERSARIAL_REVIEW.md",
+        "name": "FINAL_ADVERSARIAL_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "FINAL_CONSENSUS_REVIEW.md",
+        "name": "FINAL_CONSENSUS_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "POST_REVIEW_HARDENING_REPORT.md",
+        "name": "POST_REVIEW_HARDENING_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "README.md",
+        "name": "README.md",
+        "extension": ".md"
+      },
+      {
+        "path": "REVIEW_GAPS_REPORT.md",
+        "name": "REVIEW_GAPS_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "benchmarks/README.md",
+        "name": "README.md",
+        "extension": ".md"
+      },
+      {
+        "path": "benchmarks/results/alpha-f2e7bfd.json",
+        "name": "alpha-f2e7bfd.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/results/alpha-f2e7bfd.md",
+        "name": "alpha-f2e7bfd.md",
+        "extension": ".md"
+      },
+      {
+        "path": "benchmarks/results/archive_hash.json",
+        "name": "archive_hash.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/results/attest.json",
+        "name": "attest.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/results/block_mine.json",
+        "name": "block_mine.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/results/block_verify.json",
+        "name": "block_verify.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/results/latest.json",
+        "name": "latest.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/results/ledger_replay.json",
+        "name": "ledger_replay.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/results/memory.json",
+        "name": "memory.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/results/registry_replay.json",
+        "name": "registry_replay.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/results/sha256.json",
+        "name": "sha256.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/results/startup.json",
+        "name": "startup.json",
+        "extension": ".json"
+      },
+      {
+        "path": "benchmarks/run.py",
+        "name": "run.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/__main__.py",
+        "name": "__main__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/archive.py",
+        "name": "archive.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/block.py",
+        "name": "block.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/chain.py",
+        "name": "chain.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/cli.py",
+        "name": "cli.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/cli_v2.py",
+        "name": "cli_v2.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/codec.py",
+        "name": "codec.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/crypto.py",
+        "name": "crypto.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/governance.py",
+        "name": "governance.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/codec.py",
+        "name": "codec.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/constants.py",
+        "name": "constants.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/discovery/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/discovery/bootstrap.py",
+        "name": "bootstrap.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/discovery/discovery.py",
+        "name": "discovery.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/discovery/errors.py",
+        "name": "errors.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/discovery/peer_table.py",
+        "name": "peer_table.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/envelope.py",
+        "name": "envelope.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/errors.py",
+        "name": "errors.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/gossip/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/gossip/cache.py",
+        "name": "cache.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/gossip/engine.py",
+        "name": "engine.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/gossip/errors.py",
+        "name": "errors.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/messages.py",
+        "name": "messages.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/relay/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/relay/cache.py",
+        "name": "cache.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/relay/engine.py",
+        "name": "engine.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/relay/errors.py",
+        "name": "errors.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/relay/inventory.py",
+        "name": "inventory.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/relay/limits.py",
+        "name": "limits.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/socket/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/socket/errors.py",
+        "name": "errors.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/socket/framing.py",
+        "name": "framing.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/socket/limits.py",
+        "name": "limits.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/socket/socket_connection.py",
+        "name": "socket_connection.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/socket/tcp_transport.py",
+        "name": "tcp_transport.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/sync/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/sync/block_sync.py",
+        "name": "block_sync.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/sync/engine.py",
+        "name": "engine.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/sync/errors.py",
+        "name": "errors.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/sync/header_sync.py",
+        "name": "header_sync.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/transport/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/transport/connection.py",
+        "name": "connection.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/transport/errors.py",
+        "name": "errors.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/transport/handshake.py",
+        "name": "handshake.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/transport/interface.py",
+        "name": "interface.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/transport/limits.py",
+        "name": "limits.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/transport/manager.py",
+        "name": "manager.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/transport/memory.py",
+        "name": "memory.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/transport/queue.py",
+        "name": "queue.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network/validation.py",
+        "name": "validation.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/network_identity.py",
+        "name": "network_identity.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/py.typed",
+        "name": "py.typed",
+        "extension": ".typed"
+      },
+      {
+        "path": "chainbreaker/registry_state.py",
+        "name": "registry_state.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/reorg.py",
+        "name": "reorg.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/storage/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/storage/backend.py",
+        "name": "backend.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/storage/failpoint.py",
+        "name": "failpoint.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/storage/filesystem.py",
+        "name": "filesystem.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/storage/formats.py",
+        "name": "formats.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/storage/journal.py",
+        "name": "journal.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/storage/recovery.py",
+        "name": "recovery.py",
+        "extension": ".py"
+      },
+      {
+        "path": "chainbreaker/witness.py",
+        "name": "witness.py",
+        "extension": ".py"
+      },
+      {
+        "path": "docs/ACTIVATION_HEIGHT_CONSISTENCY.md",
+        "name": "ACTIVATION_HEIGHT_CONSISTENCY.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/ADVERSARIAL_SERIALIZATION_REVIEW.md",
+        "name": "ADVERSARIAL_SERIALIZATION_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/ALPHA_STATUS.md",
+        "name": "ALPHA_STATUS.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/ARCHITECTURE.md",
+        "name": "ARCHITECTURE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/BLOCK_RELAY_ARCHITECTURE.md",
+        "name": "BLOCK_RELAY_ARCHITECTURE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/BLOCK_RELAY_SECURITY_REVIEW.md",
+        "name": "BLOCK_RELAY_SECURITY_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/BLOCK_SYNC_DESIGN.md",
+        "name": "BLOCK_SYNC_DESIGN.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/CHAIN_SYNC_SECURITY_REVIEW.md",
+        "name": "CHAIN_SYNC_SECURITY_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/CLI_V2_GUIDE.md",
+        "name": "CLI_V2_GUIDE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/CONSENSUS_CHANGE_POLICY.md",
+        "name": "CONSENSUS_CHANGE_POLICY.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/CONSENSUS_INVARIANTS.md",
+        "name": "CONSENSUS_INVARIANTS.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/CONSENSUS_MUTATION_RESULTS.md",
+        "name": "CONSENSUS_MUTATION_RESULTS.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/CONSENSUS_MUTATION_TEST_PLAN.md",
+        "name": "CONSENSUS_MUTATION_TEST_PLAN.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/CORRUPTION_ADVERSARIAL_REVIEW.md",
+        "name": "CORRUPTION_ADVERSARIAL_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/CROSS_LANGUAGE_CONSENSUS_RESULT.md",
+        "name": "CROSS_LANGUAGE_CONSENSUS_RESULT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/DEVELOPER_GUIDE.md",
+        "name": "DEVELOPER_GUIDE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/DISCOVERY_GOSSIP_SECURITY_REVIEW.md",
+        "name": "DISCOVERY_GOSSIP_SECURITY_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/DOCUMENTATION_TRUTH_FREEZE.md",
+        "name": "DOCUMENTATION_TRUTH_FREEZE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/EXTERNAL_AUDIT_CHECKLIST.md",
+        "name": "EXTERNAL_AUDIT_CHECKLIST.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/FORK_DIVERGENCE_ADVERSARIAL_REVIEW.md",
+        "name": "FORK_DIVERGENCE_ADVERSARIAL_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/FUZZ_TESTING_REVIEW.md",
+        "name": "FUZZ_TESTING_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/GENESIS_V2_SPECIFICATION.md",
+        "name": "GENESIS_V2_SPECIFICATION.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/GOSSIP_PROTOCOL_V1.md",
+        "name": "GOSSIP_PROTOCOL_V1.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/HEADER_SYNC_DESIGN.md",
+        "name": "HEADER_SYNC_DESIGN.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/HEADER_V2_DESIGN.md",
+        "name": "HEADER_V2_DESIGN.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/HEADER_V2_IMPLEMENTATION_CHECKLIST.md",
+        "name": "HEADER_V2_IMPLEMENTATION_CHECKLIST.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/HEADER_V2_MIGRATION_PLAN.md",
+        "name": "HEADER_V2_MIGRATION_PLAN.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/HEADER_V2_TEST_VECTORS.md",
+        "name": "HEADER_V2_TEST_VECTORS.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/HISTORICAL_DESIGN_ANALYSIS.md",
+        "name": "HISTORICAL_DESIGN_ANALYSIS.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/NETWORK_ADVERSARIAL_CERTIFICATION_PLAN.md",
+        "name": "NETWORK_ADVERSARIAL_CERTIFICATION_PLAN.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/NETWORK_ARCHITECTURE_ADVERSARIAL_REVIEW.md",
+        "name": "NETWORK_ARCHITECTURE_ADVERSARIAL_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/NETWORK_ATTACK_SIMULATION_RESULTS.md",
+        "name": "NETWORK_ATTACK_SIMULATION_RESULTS.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/NETWORK_CONSENSUS_BOUNDARY.md",
+        "name": "NETWORK_CONSENSUS_BOUNDARY.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/NETWORK_DEPENDENCY_BOUNDARY_REVIEW.md",
+        "name": "NETWORK_DEPENDENCY_BOUNDARY_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/NETWORK_PROTOCOL_V1.md",
+        "name": "NETWORK_PROTOCOL_V1.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/NETWORK_RELEASE_READINESS.md",
+        "name": "NETWORK_RELEASE_READINESS.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/NETWORK_THREAT_MODEL.md",
+        "name": "NETWORK_THREAT_MODEL.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/NETWORK_TOPOLOGY_THREAT_MODEL.md",
+        "name": "NETWORK_TOPOLOGY_THREAT_MODEL.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/NETWORK_TRANSPORT_THREAT_MODEL.md",
+        "name": "NETWORK_TRANSPORT_THREAT_MODEL.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/OPERATOR_GUIDE.md",
+        "name": "OPERATOR_GUIDE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PEER_ABUSE_POLICY.md",
+        "name": "PEER_ABUSE_POLICY.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PEER_DISCOVERY_ARCHITECTURE.md",
+        "name": "PEER_DISCOVERY_ARCHITECTURE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PEER_HANDSHAKE.md",
+        "name": "PEER_HANDSHAKE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PEER_HANDSHAKE_SECURITY_REVIEW.md",
+        "name": "PEER_HANDSHAKE_SECURITY_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PEER_LIMITS_POLICY.md",
+        "name": "PEER_LIMITS_POLICY.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PEER_SCORING_MODEL.md",
+        "name": "PEER_SCORING_MODEL.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE7E_STORAGE_IMPLEMENTATION_REPORT.md",
+        "name": "PHASE7E_STORAGE_IMPLEMENTATION_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE7F_STORAGE_RESTART_CERTIFICATION.md",
+        "name": "PHASE7F_STORAGE_RESTART_CERTIFICATION.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE7H_REORG_IMPLEMENTATION_REPORT.md",
+        "name": "PHASE7H_REORG_IMPLEMENTATION_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE7_COMPLETION_REPORT.md",
+        "name": "PHASE7_COMPLETION_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE7_REORG_ARCHITECTURE.md",
+        "name": "PHASE7_REORG_ARCHITECTURE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE7_STORAGE_ADVERSARIAL_REVIEW.md",
+        "name": "PHASE7_STORAGE_ADVERSARIAL_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE7_STORAGE_ARCHITECTURE.md",
+        "name": "PHASE7_STORAGE_ARCHITECTURE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8A_NETWORK_ARCHITECTURE_REPORT.md",
+        "name": "PHASE8A_NETWORK_ARCHITECTURE_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8B_NETWORK_PARSER_REPORT.md",
+        "name": "PHASE8B_NETWORK_PARSER_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8C_TRANSPORT_FOUNDATION_REPORT.md",
+        "name": "PHASE8C_TRANSPORT_FOUNDATION_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8D_CONNECTION_HANDSHAKE_REPORT.md",
+        "name": "PHASE8D_CONNECTION_HANDSHAKE_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8E_SOCKET_TRANSPORT_REPORT.md",
+        "name": "PHASE8E_SOCKET_TRANSPORT_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8F_DISCOVERY_GOSSIP_ARCHITECTURE_REPORT.md",
+        "name": "PHASE8F_DISCOVERY_GOSSIP_ARCHITECTURE_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8G_DISCOVERY_GOSSIP_IMPLEMENTATION_REPORT.md",
+        "name": "PHASE8G_DISCOVERY_GOSSIP_IMPLEMENTATION_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8H_SYNC_ARCHITECTURE_REPORT.md",
+        "name": "PHASE8H_SYNC_ARCHITECTURE_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8I_CHAIN_SYNC_IMPLEMENTATION_REPORT.md",
+        "name": "PHASE8I_CHAIN_SYNC_IMPLEMENTATION_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8J_BLOCK_RELAY_ARCHITECTURE_REPORT.md",
+        "name": "PHASE8J_BLOCK_RELAY_ARCHITECTURE_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8K_BLOCK_RELAY_IMPLEMENTATION_REPORT.md",
+        "name": "PHASE8K_BLOCK_RELAY_IMPLEMENTATION_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8L_NETWORK_ADVERSARIAL_CERTIFICATION_REPORT.md",
+        "name": "PHASE8L_NETWORK_ADVERSARIAL_CERTIFICATION_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8MA_ACCEPTANCE_PATH_MAP.md",
+        "name": "PHASE8MA_ACCEPTANCE_PATH_MAP.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8MA_CONSENSUS_VALIDATION_HARDENING_REPORT.md",
+        "name": "PHASE8MA_CONSENSUS_VALIDATION_HARDENING_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8MB_ARCHIVE_INTEGRITY_ACCEPTANCE_PATH_MAP.md",
+        "name": "PHASE8MB_ARCHIVE_INTEGRITY_ACCEPTANCE_PATH_MAP.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8MB_ARCHIVE_INTEGRITY_HARDENING_REPORT.md",
+        "name": "PHASE8MB_ARCHIVE_INTEGRITY_HARDENING_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8MC_GENESIS_NETWORK_INITIALIZATION_SPEC.md",
+        "name": "PHASE8MC_GENESIS_NETWORK_INITIALIZATION_SPEC.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PHASE8MD_RUST_NETWORK_IDENTITY_SPEC.md",
+        "name": "PHASE8MD_RUST_NETWORK_IDENTITY_SPEC.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/POW_V2_IMPLEMENTATION_CHECKLIST.md",
+        "name": "POW_V2_IMPLEMENTATION_CHECKLIST.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/POW_V2_SPECIFICATION.md",
+        "name": "POW_V2_SPECIFICATION.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PROTOCOL.md",
+        "name": "PROTOCOL.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/PROTOCOL_V2_TEST_VECTOR_INDEX.md",
+        "name": "PROTOCOL_V2_TEST_VECTOR_INDEX.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/REGISTRY_ROOT_VALIDATION_DESIGN.md",
+        "name": "REGISTRY_ROOT_VALIDATION_DESIGN.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/REGISTRY_STATE_ADVERSARIAL_REVIEW.md",
+        "name": "REGISTRY_STATE_ADVERSARIAL_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/RELAY_LIMITS_POLICY.md",
+        "name": "RELAY_LIMITS_POLICY.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/RELAY_PROTOCOL_V1.md",
+        "name": "RELAY_PROTOCOL_V1.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/RELAY_THREAT_MODEL.md",
+        "name": "RELAY_THREAT_MODEL.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/REORG_ADVERSARIAL_REVIEW.md",
+        "name": "REORG_ADVERSARIAL_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/REORG_STATE_MACHINE.md",
+        "name": "REORG_STATE_MACHINE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/REPORT.md",
+        "name": "REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/SELF_IMPROVEMENT_REPORT.md",
+        "name": "SELF_IMPROVEMENT_REPORT.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/SOCKET_TRANSPORT_SECURITY_REVIEW.md",
+        "name": "SOCKET_TRANSPORT_SECURITY_REVIEW.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/STORAGE_CRASH_RECOVERY.md",
+        "name": "STORAGE_CRASH_RECOVERY.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/STORAGE_FORMAT_V1.md",
+        "name": "STORAGE_FORMAT_V1.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/SYNC_ARCHITECTURE.md",
+        "name": "SYNC_ARCHITECTURE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/SYNC_LIMITS_POLICY.md",
+        "name": "SYNC_LIMITS_POLICY.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/SYNC_PROTOCOL_ARCHITECTURE.md",
+        "name": "SYNC_PROTOCOL_ARCHITECTURE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/SYNC_THREAT_MODEL.md",
+        "name": "SYNC_THREAT_MODEL.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/THREAT_MODEL.md",
+        "name": "THREAT_MODEL.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/001-protocol-v2.md",
+        "name": "001-protocol-v2.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/002-consensus-freeze.md",
+        "name": "002-consensus-freeze.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/003-cli-api-freeze.md",
+        "name": "003-cli-api-freeze.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/004-storage-backend-boundary.md",
+        "name": "004-storage-backend-boundary.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/005-snapshot-and-pruning-model.md",
+        "name": "005-snapshot-and-pruning-model.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/006-write-ahead-journal.md",
+        "name": "006-write-ahead-journal.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/007-accumulated-work-fork-choice.md",
+        "name": "007-accumulated-work-fork-choice.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/008-branch-specific-state.md",
+        "name": "008-branch-specific-state.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/009-atomic-tip-switch.md",
+        "name": "009-atomic-tip-switch.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/010-network-boundary.md",
+        "name": "010-network-boundary.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/011-peer-validation.md",
+        "name": "011-peer-validation.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/012-sync-strategy.md",
+        "name": "012-sync-strategy.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/013-peer-discovery.md",
+        "name": "013-peer-discovery.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/014-gossip-limits.md",
+        "name": "014-gossip-limits.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/015-sync-strategy.md",
+        "name": "015-sync-strategy.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/adr/016-block-relay-strategy.md",
+        "name": "016-block-relay-strategy.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/releases/v2.0.0-alpha/API_FREEZE.md",
+        "name": "API_FREEZE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/releases/v2.0.0-alpha/BENCHMARK_BASELINE.md",
+        "name": "BENCHMARK_BASELINE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/releases/v2.0.0-alpha/CONSENSUS_FREEZE.md",
+        "name": "CONSENSUS_FREEZE.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/releases/v2.0.0-alpha/KNOWN_LIMITATIONS.md",
+        "name": "KNOWN_LIMITATIONS.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/releases/v2.0.0-alpha/README.md",
+        "name": "README.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/releases/v2.0.0-alpha/RELEASE_NOTES.md",
+        "name": "RELEASE_NOTES.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/releases/v2.0.0-alpha/SECURITY_STATUS.md",
+        "name": "SECURITY_STATUS.md",
+        "extension": ".md"
+      },
+      {
+        "path": "docs/releases/v2.0.0-alpha/TEST_SUMMARY.md",
+        "name": "TEST_SUMMARY.md",
+        "extension": ".md"
+      },
+      {
+        "path": "pyproject.toml",
+        "name": "pyproject.toml",
+        "extension": ".toml"
+      },
+      {
+        "path": "requirements.txt",
+        "name": "requirements.txt",
+        "extension": ".txt"
+      },
+      {
+        "path": "rust-verifier/.gitignore",
+        "name": ".gitignore",
+        "extension": ""
+      },
+      {
+        "path": "rust-verifier/Cargo.toml",
+        "name": "Cargo.toml",
+        "extension": ".toml"
+      },
+      {
+        "path": "rust-verifier/README.md",
+        "name": "README.md",
+        "extension": ".md"
+      },
+      {
+        "path": "rust-verifier/src/lib.rs",
+        "name": "lib.rs",
+        "extension": ".rs"
+      },
+      {
+        "path": "rust-verifier/src/main.rs",
+        "name": "main.rs",
+        "extension": ".rs"
+      },
+      {
+        "path": "rust-verifier/src/network_identity.rs",
+        "name": "network_identity.rs",
+        "extension": ".rs"
+      },
+      {
+        "path": "rust-verifier/tests/integration_tests.rs",
+        "name": "integration_tests.rs",
+        "extension": ".rs"
+      },
+      {
+        "path": "samples/README.md",
+        "name": "README.md",
+        "extension": ".md"
+      },
+      {
+        "path": "samples/didache-sample.txt",
+        "name": "didache-sample.txt",
+        "extension": ".txt"
+      },
+      {
+        "path": "scripts/download_bibles.py",
+        "name": "download_bibles.py",
+        "extension": ".py"
+      },
+      {
+        "path": "scripts/run_consensus_mutations.py",
+        "name": "run_consensus_mutations.py",
+        "extension": ".py"
+      },
+      {
+        "path": "storage-vectors/0000000001.bin",
+        "name": "0000000001.bin",
+        "extension": ".bin"
+      },
+      {
+        "path": "storage-vectors/0000000001.hdr",
+        "name": "0000000001.hdr",
+        "extension": ".hdr"
+      },
+      {
+        "path": "storage-vectors/0000000001_148byte.hdr",
+        "name": "0000000001_148byte.hdr",
+        "extension": ".hdr"
+      },
+      {
+        "path": "storage-vectors/0000000001_garbage.bin",
+        "name": "0000000001_garbage.bin",
+        "extension": ".bin"
+      },
+      {
+        "path": "storage-vectors/0000000001_trailing.hdr",
+        "name": "0000000001_trailing.hdr",
+        "extension": ".hdr"
+      },
+      {
+        "path": "storage-vectors/0000000001_truncated.bin",
+        "name": "0000000001_truncated.bin",
+        "extension": ".bin"
+      },
+      {
+        "path": "storage-vectors/HEAD",
+        "name": "HEAD",
+        "extension": ""
+      },
+      {
+        "path": "storage-vectors/README.md",
+        "name": "README.md",
+        "extension": ".md"
+      },
+      {
+        "path": "storage-vectors/journal_begin_record.bin",
+        "name": "journal_begin_record.bin",
+        "extension": ".bin"
+      },
+      {
+        "path": "storage-vectors/journal_commit_record.bin",
+        "name": "journal_commit_record.bin",
+        "extension": ".bin"
+      },
+      {
+        "path": "test-vectors/generate_network_identity_vectors.py",
+        "name": "generate_network_identity_vectors.py",
+        "extension": ".py"
+      },
+      {
+        "path": "test-vectors/genesis.bin",
+        "name": "genesis.bin",
+        "extension": ".bin"
+      },
+      {
+        "path": "test-vectors/genesis.hash",
+        "name": "genesis.hash",
+        "extension": ".hash"
+      },
+      {
+        "path": "test-vectors/header-v2-genesis.bin",
+        "name": "header-v2-genesis.bin",
+        "extension": ".bin"
+      },
+      {
+        "path": "test-vectors/network-identities-test-genesis.bin",
+        "name": "network-identities-test-genesis.bin",
+        "extension": ".bin"
+      },
+      {
+        "path": "test-vectors/network-identities-test-genesis.hash",
+        "name": "network-identities-test-genesis.hash",
+        "extension": ".hash"
+      },
+      {
+        "path": "test-vectors/network-identities.json",
+        "name": "network-identities.json",
+        "extension": ".json"
+      },
+      {
+        "path": "test-vectors/registry-root.hash",
+        "name": "registry-root.hash",
+        "extension": ".hash"
+      },
+      {
+        "path": "test-vectors/registry-state.bin",
+        "name": "registry-state.bin",
+        "extension": ".bin"
+      },
+      {
+        "path": "test-vectors/validate_vectors.py",
+        "name": "validate_vectors.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/_adversarial_block_helpers.py",
+        "name": "_adversarial_block_helpers.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/adversarial/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/adversarial/conftest.py",
+        "name": "conftest.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/adversarial/test_certification.py",
+        "name": "test_certification.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/adversarial/test_combined_attacks.py",
+        "name": "test_combined_attacks.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/adversarial/test_relay_attacks.py",
+        "name": "test_relay_attacks.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/adversarial/test_sync_attacks.py",
+        "name": "test_sync_attacks.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/discovery/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/discovery/test_discovery_manager.py",
+        "name": "test_discovery_manager.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/discovery/test_peer_table.py",
+        "name": "test_peer_table.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/gossip/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/gossip/test_gossip_cache.py",
+        "name": "test_gossip_cache.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/gossip/test_gossip_engine.py",
+        "name": "test_gossip_engine.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/relay/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/relay/test_inventory.py",
+        "name": "test_inventory.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/relay/test_relay_adversarial.py",
+        "name": "test_relay_adversarial.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/relay/test_relay_cache.py",
+        "name": "test_relay_cache.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/relay/test_relay_engine.py",
+        "name": "test_relay_engine.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/socket/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/socket/test_cleanup.py",
+        "name": "test_cleanup.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/socket/test_framing.py",
+        "name": "test_framing.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/socket/test_partial_reads.py",
+        "name": "test_partial_reads.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/socket/test_socket_connection.py",
+        "name": "test_socket_connection.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/socket/test_socket_limits.py",
+        "name": "test_socket_limits.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/socket/test_socket_timeouts.py",
+        "name": "test_socket_timeouts.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/socket/test_tcp_transport.py",
+        "name": "test_tcp_transport.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/sync/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/sync/test_block_sync.py",
+        "name": "test_block_sync.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/sync/test_header_sync.py",
+        "name": "test_header_sync.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/sync/test_sync_adversarial.py",
+        "name": "test_sync_adversarial.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/sync/test_sync_engine.py",
+        "name": "test_sync_engine.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/test_network_codec.py",
+        "name": "test_network_codec.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/test_network_fuzz.py",
+        "name": "test_network_fuzz.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/test_network_limits.py",
+        "name": "test_network_limits.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/test_network_malformed.py",
+        "name": "test_network_malformed.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/test_network_validation.py",
+        "name": "test_network_validation.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/transport/__init__.py",
+        "name": "__init__.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/transport/test_backpressure.py",
+        "name": "test_backpressure.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/transport/test_connection_manager.py",
+        "name": "test_connection_manager.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/transport/test_connection_state.py",
+        "name": "test_connection_state.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/transport/test_disconnect_rules.py",
+        "name": "test_disconnect_rules.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/transport/test_handshake.py",
+        "name": "test_handshake.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/transport/test_memory_transport.py",
+        "name": "test_memory_transport.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/transport/test_queue_limits.py",
+        "name": "test_queue_limits.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/transport/test_rate_limits.py",
+        "name": "test_rate_limits.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/network/transport/test_transport_interface.py",
+        "name": "test_transport_interface.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_adversarial.py",
+        "name": "test_adversarial.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_adversarial_corruption.py",
+        "name": "test_adversarial_corruption.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_adversarial_fork_divergence.py",
+        "name": "test_adversarial_fork_divergence.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_adversarial_governance.py",
+        "name": "test_adversarial_governance.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_adversarial_registry_state.py",
+        "name": "test_adversarial_registry_state.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_adversarial_serialization.py",
+        "name": "test_adversarial_serialization.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_archive.py",
+        "name": "test_archive.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_block.py",
+        "name": "test_block.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_chain.py",
+        "name": "test_chain.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_cli.py",
+        "name": "test_cli.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_cli_v2.py",
+        "name": "test_cli_v2.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_codec.py",
+        "name": "test_codec.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_crypto.py",
+        "name": "test_crypto.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_fuzz_consensus.py",
+        "name": "test_fuzz_consensus.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_genesis_v2.py",
+        "name": "test_genesis_v2.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_governance.py",
+        "name": "test_governance.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_header_v2.py",
+        "name": "test_header_v2.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_historical_attestation.py",
+        "name": "test_historical_attestation.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_phase8ma_consensus_validation_hardening.py",
+        "name": "test_phase8ma_consensus_validation_hardening.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_phase8mb_archive_integrity_hardening.py",
+        "name": "test_phase8mb_archive_integrity_hardening.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_phase8mc_genesis_network_initialization.py",
+        "name": "test_phase8mc_genesis_network_initialization.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_phase8md_network_identity_verification.py",
+        "name": "test_phase8md_network_identity_verification.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_post_review_hardening.py",
+        "name": "test_post_review_hardening.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_pow_v2.py",
+        "name": "test_pow_v2.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_registry_state.py",
+        "name": "test_registry_state.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_registry_validation.py",
+        "name": "test_registry_validation.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_reorg_attestations.py",
+        "name": "test_reorg_attestations.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_reorg_fork_choice.py",
+        "name": "test_reorg_fork_choice.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_reorg_snapshots.py",
+        "name": "test_reorg_snapshots.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_reorg_state_isolation.py",
+        "name": "test_reorg_state_isolation.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_reorg_storage.py",
+        "name": "test_reorg_storage.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_storage_backend.py",
+        "name": "test_storage_backend.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_storage_corruption.py",
+        "name": "test_storage_corruption.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_storage_fault_injection.py",
+        "name": "test_storage_fault_injection.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_storage_fault_matrix.py",
+        "name": "test_storage_fault_matrix.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_storage_formats.py",
+        "name": "test_storage_formats.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_storage_locking.py",
+        "name": "test_storage_locking.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_storage_multiblock.py",
+        "name": "test_storage_multiblock.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_storage_performance.py",
+        "name": "test_storage_performance.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_storage_recovery.py",
+        "name": "test_storage_recovery.py",
+        "extension": ".py"
+      },
+      {
+        "path": "tests/test_witness.py",
+        "name": "test_witness.py",
+        "extension": ".py"
+      }
+    ]
+  },
   "tools": [],
   "toolsets": [],
   "cases": [],
@@ -25,6 +1904,13 @@
   "evidence": [],
   "agent_ops": {},
   "activity": [
+    {
+      "id": "bf17202ae0acf9c9e10fe54e5d48ed68c442d260",
+      "type": "commit",
+      "title": "Command site: enable repository Explorer snapshots",
+      "timestamp": "2026-08-16T19:18:58-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/bf17202ae0acf9c9e10fe54e5d48ed68c442d260"
+    },
     {
       "id": "e71c1370d4509a5bfb064c99b0c5ae0d887f6ea7",
       "type": "commit",
@@ -87,13 +1973,6 @@
       "title": "fix focused audit Python test environment",
       "timestamp": "2026-08-16T10:43:51-05:00",
       "url": "https://github.com/kaibuzz0/chain-breaker/commit/8d6539f9bd46d4c143f6edd6b7d35ae9b4b9f0c5"
-    },
-    {
-      "id": "d52bb7158ea16cf772889d99096988ea07641d29",
-      "type": "commit",
-      "title": "extend audit to V2 network-aware schema validation",
-      "timestamp": "2026-08-16T10:39:52-05:00",
-      "url": "https://github.com/kaibuzz0/chain-breaker/commit/d52bb7158ea16cf772889d99096988ea07641d29"
     }
   ],
   "links": [
