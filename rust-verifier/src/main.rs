@@ -58,6 +58,12 @@ fn run_all(dir: &Path) -> Result<String, VerifyError> {
     run_check!("ed25519", check_ed25519(dir));
     run_check!("block", check_block(dir));
 
+    if failed > 0 {
+        return Err(VerifyError::Protocol(format!(
+            "{} vector checks failed (passed={} failed={})",
+            failed, passed, failed
+        )));
+    }
     Ok(format!("passed={} failed={}", passed, failed))
 }
 
@@ -122,7 +128,7 @@ fn check_header_v2(dir: &Path) -> Result<(), VerifyError> {
     }
     let frozen = load_bytes(dir, "header-v2-genesis.bin")?;
     let re = HeaderV2::decode_strict(&frozen)?.encode();
-    expect_hex("frozen header", &hex::encode(&frozen), &re)?;
+    expect_hex("frozen header", &hex::encode(frozen.as_slice()), &re)?;
     Ok(())
 }
 
@@ -210,11 +216,12 @@ fn check_pow(dir: &Path) -> Result<(), VerifyError> {
             actual: hex::encode(le),
         });
     }
-    for neg in val
+    let negatives = val
         .get("negative_vectors")
         .and_then(|v| v.as_array())
-        .unwrap_or(&Vec::new())
-    {
+        .map(|a| a.as_slice())
+        .unwrap_or(&[]);
+    for neg in negatives {
         let hash = target_from_hex(
             neg["block_hash_hex"]
                 .as_str()
@@ -225,7 +232,7 @@ fn check_pow(dir: &Path) -> Result<(), VerifyError> {
                 .as_str()
                 .ok_or_else(|| VerifyError::Protocol("missing target_hex".into()))?,
         )?;
-        if u256_le(&hash, &target) {
+        if hash <= target {
             return Err(VerifyError::Protocol(format!(
                 "PoW negative should fail: {}",
                 neg["description"].as_str().unwrap_or("")
@@ -311,39 +318,55 @@ fn check_registry_state(dir: &Path) -> Result<(), VerifyError> {
 }
 
 fn check_network_identities(dir: &Path) -> Result<(), VerifyError> {
-    use crate::network_identity::{derive_genesis, NetworkIdentity, registry_root, serialize_genesis_registry_state};
+    use crate::network_identity::{derive_genesis, NetworkIdentity};
+    use crate::{derive_registry_root, serialize_genesis_registry_state};
 
     let val = load_json(dir, "network-identities.json")?;
+    let vectors = as_array(&val["vectors"], "network-identities vectors")?;
 
-    for v in as_array(&val["vectors"],
-        "network-identities vectors"
-    )? {
+    for v in vectors {
         let identity = NetworkIdentity::from_json(v)?;
         let expected_registry_root = v["expected_registry_root"]
             .as_str()
             .ok_or_else(|| VerifyError::Protocol("missing expected_registry_root".into()))?;
-        let derived_root = registry_root(&identity);
-        expect_hex("network identity registry root", expected_registry_root, &derived_root)?;
+        let derived_root = derive_registry_root(&identity);
+        expect_hex(
+            "network identity registry root",
+            expected_registry_root,
+            &derived_root,
+        )?;
 
         let expected_state_hex = v["expected_registry_state_hex"]
             .as_str()
             .ok_or_else(|| VerifyError::Protocol("missing expected_registry_state_hex".into()))?;
         let serialized = serialize_genesis_registry_state(&identity);
-        expect_hex("network identity registry state", expected_state_hex, &serialized)?;
+        expect_hex(
+            "network identity registry state",
+            expected_state_hex,
+            &serialized,
+        )?;
 
         let (header, hash) = derive_genesis(&identity)?;
         let expected_header_hex = v["expected_header_bytes_hex"]
             .as_str()
             .ok_or_else(|| VerifyError::Protocol("missing expected_header_bytes_hex".into()))?;
-        expect_hex("network identity genesis header", expected_header_hex, &header.encode())?;
+        expect_hex(
+            "network identity genesis header",
+            expected_header_hex,
+            &header.encode(),
+        )?;
         let expected_hash = v["expected_header_hash"]
             .as_str()
             .ok_or_else(|| VerifyError::Protocol("missing expected_header_hash".into()))?;
         expect_hex("network identity genesis hash", expected_hash, &hash)?;
     }
 
-    for neg in val.get("negative_vectors").and_then(|v| v.as_array()).unwrap_or(&Vec::new())
-    {
+    let negatives = val
+        .get("negative_vectors")
+        .and_then(|v| v.as_array())
+        .map(|a| a.as_slice())
+        .unwrap_or(&[]);
+    for neg in negatives {
         let variant = neg["variant"].as_str().unwrap_or("");
         if variant == "wrong_genesis_root" {
             let identity = NetworkIdentity::from_json(neg)?;
@@ -365,11 +388,7 @@ fn check_network_identities(dir: &Path) -> Result<(), VerifyError> {
         } else {
             let identity = NetworkIdentity::from_json(neg)?;
             let (_, hash) = derive_genesis(&identity)?;
-            let base_id = NetworkIdentity::from_json(
-                as_array(&val["vectors"],
-                    "network-identities vectors"
-                )?[1]
-            )?;
+            let base_id = NetworkIdentity::from_json(&vectors[1])?;
             let (_, base_hash) = derive_genesis(&base_id)?;
             if hash == base_hash {
                 return Err(VerifyError::Protocol(format!(
@@ -384,19 +403,18 @@ fn check_network_identities(dir: &Path) -> Result<(), VerifyError> {
 
 fn check_governance_register(dir: &Path) -> Result<(), VerifyError> {
     let val = load_json(dir, "governance-register.json")?;
-    let gov_keys: Vec<String> = as_array(
-        &val["vectors"].as_array().unwrap()[0]["governance_keys"],
-        "governance_keys",
-    )?
-    .iter()
-    .map(|v| v.as_str().unwrap().to_string())
-    .collect();
+    let first_vector = val["vectors"]
+        .as_array()
+        .and_then(|a| a.first())
+        .ok_or_else(|| VerifyError::Protocol("governance-register has no vectors".into()))?;
+    let gov_keys: Vec<String> = as_array(&first_vector["governance_keys"], "governance_keys")?
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     for v in as_array(&val["vectors"], "governance-register vectors")? {
         let body = &v["input"];
         let body_without_witness = remove_witness_keys(body.clone());
-        let network_id = v["network_id"]
-            .as_str()
-            .unwrap_or(crate::NETWORK_ID);
+        let network_id = v["network_id"].as_str().unwrap_or(crate::NETWORK_ID);
         let msg = build_governance_message(&body_without_witness, network_id);
         let sigs = as_array(&body["governance_signatures"], "governance_signatures")?;
         let should_pass = v["expected_validity"].as_bool().unwrap_or(false);
@@ -432,9 +450,7 @@ fn check_governance_rotate_revoke(dir: &Path) -> Result<(), VerifyError> {
         }
         let body = &v["input"];
         let body_without_witness = remove_witness_keys(body.clone());
-        let network_id = gov_rr["network_id"]
-            .as_str()
-            .unwrap_or(crate::NETWORK_ID);
+        let network_id = val["network_id"].as_str().unwrap_or(crate::NETWORK_ID);
         let msg = build_governance_message(&body_without_witness, network_id);
         let sigs = as_array(&body["governance_signatures"], "governance_signatures")?;
         let should_pass = v["expected_validity"].as_bool().unwrap_or(false);

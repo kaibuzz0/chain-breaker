@@ -17,10 +17,7 @@ impl NetworkIdentity {
             .as_str()
             .ok_or_else(|| VerifyError::Protocol("missing network_id".into()))?
             .to_string();
-        let kind = value["kind"]
-            .as_str()
-            .ok_or_else(|| VerifyError::Protocol("missing kind".into()))?
-            .to_string();
+        let kind = value["kind"].as_str().unwrap_or("test").to_string();
         let mut governance_keys: Vec<String> = value["governance_keys"]
             .as_array()
             .ok_or_else(|| VerifyError::Protocol("missing governance_keys".into()))?

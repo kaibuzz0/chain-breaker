@@ -69,13 +69,21 @@ fn network_identity_derives_registry_root_and_genesis() {
         governance_threshold: 2,
         genesis_timestamp: 1704067200,
     };
-    let expected_root = hex::decode("88d05861fa8524933091ced2b0c5eba0da2f58c7bd41e62bcdf36b8c7bc36a26").unwrap();
+    let expected_root =
+        hex::decode("88d05861fa8524933091ced2b0c5eba0da2f58c7bd41e62bcdf36b8c7bc36a26").unwrap();
     let derived = chainbreaker_v2_verifier::network_identity::registry_root(&identity);
     assert_eq!(&derived[..], expected_root.as_slice());
 
-    let (header, hash) = chainbreaker_v2_verifier::network_identity::derive_genesis(&identity).unwrap();
-    assert_eq!(hex::encode(header.registry_root), "88d05861fa8524933091ced2b0c5eba0da2f58c7bd41e62bcdf36b8c7bc36a26");
-    assert_eq!(hex::encode(hash), "0000618a74626b68a028978681ae432f7677f5dcc75e37ec9c05704d6d11b353");
+    let (header, hash) =
+        chainbreaker_v2_verifier::network_identity::derive_genesis(&identity).unwrap();
+    assert_eq!(
+        hex::encode(header.registry_root),
+        "88d05861fa8524933091ced2b0c5eba0da2f58c7bd41e62bcdf36b8c7bc36a26"
+    );
+    assert_eq!(
+        hex::encode(hash),
+        "0000618a74626b68a028978681ae432f7677f5dcc75e37ec9c05704d6d11b353"
+    );
 }
 
 #[test]
@@ -90,9 +98,16 @@ fn network_identity_from_json_sorts_governance_keys() {
         "governance_threshold": 1,
         "genesis_timestamp": 1704067200
     });
-    let identity = chainbreaker_v2_verifier::network_identity::NetworkIdentity::from_json(&value).unwrap();
-    assert_eq!(identity.governance_keys[0], "0000000000000000000000000000000000000000000000000000000000000000");
-    assert_eq!(identity.governance_keys[1], "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+    let identity =
+        chainbreaker_v2_verifier::network_identity::NetworkIdentity::from_json(&value).unwrap();
+    assert_eq!(
+        identity.governance_keys[0],
+        "0000000000000000000000000000000000000000000000000000000000000000"
+    );
+    assert_eq!(
+        identity.governance_keys[1],
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    );
 }
 
 #[test]
