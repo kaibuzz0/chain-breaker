@@ -11,7 +11,8 @@ pub const HEADER_V2_LEN: usize = 149;
 pub const HASH_LEN: usize = 32;
 
 pub const NETWORK_ID: &str = "chainbreaker-scripture-v2";
-pub const GENESIS_TARGET_HEX: &str = "0000ffff00000000000000000000000000000000000000000000000000000000";
+pub const GENESIS_TARGET_HEX: &str =
+    "0000ffff00000000000000000000000000000000000000000000000000000000";
 pub const PROTOCOL_VERSION: u32 = 2;
 pub const TYPE_HEADER: u8 = 0x02;
 
@@ -35,7 +36,10 @@ pub enum VerifyError {
     },
 }
 
-pub use network_identity::{derive_genesis, mine_genesis_header, NetworkIdentity, registry_root as derive_registry_root, serialize_genesis_registry_state};
+pub use network_identity::{
+    derive_genesis, mine_genesis_header, registry_root as derive_registry_root,
+    serialize_genesis_registry_state, NetworkIdentity,
+};
 
 pub type Result<T, E = VerifyError> = std::result::Result<T, E>;
 
@@ -128,10 +132,6 @@ impl HeaderV2 {
     pub fn hash(&self) -> [u8; HASH_LEN] {
         double_sha256(&self.encode())
     }
-}
-
-pub fn u256_le(a: &[u8; HASH_LEN], b: &[u8; HASH_LEN]) -> bool {
-    a <= b
 }
 
 pub fn target_from_hex(hex: &str) -> Result<[u8; HASH_LEN]> {
