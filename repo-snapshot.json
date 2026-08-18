@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-17T00:19:05Z",
-  "source_commit": "bf17202ae0acf9c9e10fe54e5d48ed68c442d260",
+  "generated_at": "2026-08-18T23:54:21Z",
+  "source_commit": "565426dddf85d7f59addf826431433492cccb84e",
   "repo": {
     "id": "chain-breaker",
     "full_name": "kaibuzz0/chain-breaker",
@@ -9,14 +9,14 @@
     "default_branch": "main"
   },
   "stats": {
-    "tracked_files": 330,
+    "tracked_files": 331,
     "python_files": 157,
     "javascript_typescript_files": 0,
     "workflow_files": 7,
     "test_files": 89
   },
   "repository_tree": {
-    "total_files": 330,
+    "total_files": 331,
     "total_directories": 33,
     "files_truncated": false,
     "directories_truncated": false,
@@ -148,7 +148,7 @@
         "path": "rust-verifier",
         "name": "rust-verifier",
         "depth": 1,
-        "file_count": 7
+        "file_count": 8
       },
       {
         "path": "rust-verifier/src",
@@ -1298,6 +1298,11 @@
         "extension": ""
       },
       {
+        "path": "rust-verifier/Cargo.lock",
+        "name": "Cargo.lock",
+        "extension": ".lock"
+      },
+      {
         "path": "rust-verifier/Cargo.toml",
         "name": "Cargo.toml",
         "extension": ".toml"
@@ -1905,6 +1910,20 @@
   "agent_ops": {},
   "activity": [
     {
+      "id": "565426dddf85d7f59addf826431433492cccb84e",
+      "type": "commit",
+      "title": "Merge pull request #54 from kaibuzz0/task1-rust-verifier-production-repair",
+      "timestamp": "2026-08-18T18:54:12-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/565426dddf85d7f59addf826431433492cccb84e"
+    },
+    {
+      "id": "926aa2b29016c40d86ef3a9d3dc6d88228bef819",
+      "type": "commit",
+      "title": "fix(rust-verifier): repair compile errors, false-green summary, negative-vector handling",
+      "timestamp": "2026-08-18T18:50:08-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/926aa2b29016c40d86ef3a9d3dc6d88228bef819"
+    },
+    {
       "id": "bf17202ae0acf9c9e10fe54e5d48ed68c442d260",
       "type": "commit",
       "title": "Command site: enable repository Explorer snapshots",
@@ -1959,20 +1978,6 @@
       "title": "add focused registry-state audit repair",
       "timestamp": "2026-08-16T10:53:19-05:00",
       "url": "https://github.com/kaibuzz0/chain-breaker/commit/a3cd28de597aab55378f92d5a342a9e2968afe56"
-    },
-    {
-      "id": "202485e9a446c7d0edd5e1c07926ea16edfc6e76",
-      "type": "commit",
-      "title": "extend audit to governance network identity propagation",
-      "timestamp": "2026-08-16T10:45:28-05:00",
-      "url": "https://github.com/kaibuzz0/chain-breaker/commit/202485e9a446c7d0edd5e1c07926ea16edfc6e76"
-    },
-    {
-      "id": "8d6539f9bd46d4c143f6edd6b7d35ae9b4b9f0c5",
-      "type": "commit",
-      "title": "fix focused audit Python test environment",
-      "timestamp": "2026-08-16T10:43:51-05:00",
-      "url": "https://github.com/kaibuzz0/chain-breaker/commit/8d6539f9bd46d4c143f6edd6b7d35ae9b4b9f0c5"
     }
   ],
   "links": [
