@@ -1,0 +1,8 @@
+{
+  "description": "Double SHA-256 on a known byte string",
+  "expected_sha256d": "39182c3476f180954ca77a613a477e66a1d6ecdc9b8191df58582d7c5248df3f",
+  "expected_single_sha256": "acbd59aaa33f86b62748f46d3c939b41a0690998364c871345ef37f659e2b734",
+  "expected_validity": true,
+  "input_hex": "436861696e2d427265616b6572",
+  "notes": "SHA-256d(x) = SHA256(SHA256(x)). Must not equal single SHA-256."
+}

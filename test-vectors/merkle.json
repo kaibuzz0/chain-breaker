@@ -1,0 +1,15 @@
+{
+  "description": "Merkle root over 4 leaf hashes",
+  "expected_root_hex": "668e9667b56dd6ecf950ef0f66cf9e0a2cc47f3bb0522e59efb66b3613eec512",
+  "expected_validity": true,
+  "leaves_hex": [
+    "b3f1114380e05cb93c494324b4878734317bd28b4d0753c7edd9537751aa5f59",
+    "516084a870d9ee3298e2734ecda329ccfda20f3b6df36c93dcfcf6edc736b313",
+    "daac2e1ec2232affffe8d4f58bd035c0bede64edaccedab89e0c73e9280cbf96",
+    "3e5c00beb496d1df99f11a53679852b8ba62929e85549c1ebc463d24f82ef096"
+  ],
+  "network_id": "chainbreaker-scripture-v2",
+  "notes": "Merkle tree is binary, bottom-up, with double-SHA256(left || right). Odd nodes are duplicated.",
+  "protocol_version": 2,
+  "tree_depth": 2
+}

@@ -1,0 +1,35 @@
+{
+  "description": "Merkle roots for 1, 2, 3 leaves (odd duplication)",
+  "format_version": 1,
+  "network_id": "chainbreaker-scripture-v2",
+  "protocol_version": 2,
+  "vectors": [
+    {
+      "expected_root_hex": "bf5d3affb73efd2ec6c36ad3112dd933efed63c4e1cbffcfa88e2759c144f2d8",
+      "leaf_count": 1,
+      "leaves_hex": [
+        "bf5d3affb73efd2ec6c36ad3112dd933efed63c4e1cbffcfa88e2759c144f2d8"
+      ],
+      "notes": "single leaf duplicated and hashed"
+    },
+    {
+      "expected_root_hex": "b767a3a12f5f8bb1949d163c51f9a42e6bda8dcd02d50353717f73d4338b1bf0",
+      "leaf_count": 2,
+      "leaves_hex": [
+        "bf5d3affb73efd2ec6c36ad3112dd933efed63c4e1cbffcfa88e2759c144f2d8",
+        "39361160903c6695c6804b7157c7bd10013e9ba89b1f954243bc8e3990b08db9"
+      ],
+      "notes": "two leaves"
+    },
+    {
+      "expected_root_hex": "74449b8328cb6e97d305adb2fca5e90993fdf9c667fa40cb625f40508da40cbf",
+      "leaf_count": 3,
+      "leaves_hex": [
+        "bf5d3affb73efd2ec6c36ad3112dd933efed63c4e1cbffcfa88e2759c144f2d8",
+        "39361160903c6695c6804b7157c7bd10013e9ba89b1f954243bc8e3990b08db9",
+        "6632753d6ca30fea890f37fc150eaed8d068acf596acb2251b8fafd72db977d3"
+      ],
+      "notes": "three leaves, last duplicated"
+    }
+  ]
+}

@@ -10,7 +10,15 @@ fn main() {
     }
     let mut vectors_dir = PathBuf::from(&args[2]);
     if vectors_dir.is_relative() {
-        if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
+        // Try the current working directory first (CI runs from repo root with
+        // `cargo run --manifest-path rust-verifier/Cargo.toml -- verify test-vectors`).
+        let cwd_resolved = std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(&vectors_dir);
+        if cwd_resolved.exists() {
+            vectors_dir = cwd_resolved;
+        } else if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
+            // Fall back to the crate directory for convenience.
             vectors_dir = PathBuf::from(manifest_dir).join(vectors_dir);
         }
     }

@@ -1,0 +1,80 @@
+{
+  "format_version": 1,
+  "network_id": "chainbreaker-scripture-v2",
+  "protocol_version": 2,
+  "vectors": [
+    {
+      "canonical_bytes_hex": "0202000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005814321ad489e630fef0350b1bff591d5cee8a821c00fa40a2cb2c99bd5b318680009265000000000000ffff0000000000000000000000000000000000000000000000000000000091a4000000000000",
+      "canonical_bytes_length": 149,
+      "description": "Canonical genesis Header V2",
+      "expected_hash": "0000a6fd1e57aafd19da552440faa94803dbf1a1773bcd9af8ce3e0ae9fd13db",
+      "expected_validity": true,
+      "height": 0,
+      "input": {
+        "merkle_root": "0000000000000000000000000000000000000000000000000000000000000000",
+        "nonce": 42129,
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "registry_root": "5814321ad489e630fef0350b1bff591d5cee8a821c00fa40a2cb2c99bd5b3186",
+        "target": "0000ffff00000000000000000000000000000000000000000000000000000000",
+        "timestamp": 1704067200,
+        "version": 2
+      },
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Exact 149-byte canonical binary header. Hash is SHA-256d of these bytes.",
+      "protocol_version": 2,
+      "type_marker": 2
+    },
+    {
+      "canonical_bytes_hex": "0102000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005814321ad489e630fef0350b1bff591d5cee8a821c00fa40a2cb2c99bd5b318680009265000000000000ffff0000000000000000000000000000000000000000000000000000000091a4000000000000",
+      "canonical_bytes_length": 149,
+      "description": "Header with wrong type marker 0x01",
+      "expected_error": "wrong type marker",
+      "expected_validity": false,
+      "height": 0,
+      "input": {
+        "merkle_root": "0000000000000000000000000000000000000000000000000000000000000000",
+        "nonce": 42129,
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "registry_root": "5814321ad489e630fef0350b1bff591d5cee8a821c00fa40a2cb2c99bd5b3186",
+        "target": "0000ffff00000000000000000000000000000000000000000000000000000000",
+        "timestamp": 1704067200,
+        "version": 2
+      },
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Type marker must be 0x02 for Header V2.",
+      "protocol_version": 2,
+      "type_marker": 1
+    },
+    {
+      "canonical_bytes_hex": "0202000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005814321ad489e630fef0350b1bff591d5cee8a821c00fa40a2cb2c99bd5b318680009265000000000000ffff0000000000000000000000000000000000000000000000000000000091a40000000000",
+      "canonical_bytes_length": 148,
+      "description": "Truncated header (148 bytes)",
+      "expected_error": "truncated header",
+      "expected_validity": false,
+      "height": 0,
+      "input": {
+        "merkle_root": "0000000000000000000000000000000000000000000000000000000000000000",
+        "nonce": 42129,
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "registry_root": "5814321ad489e630fef0350b1bff591d5cee8a821c00fa40a2cb2c99bd5b3186",
+        "target": "0000ffff00000000000000000000000000000000000000000000000000000000",
+        "timestamp": 1704067200,
+        "version": 2
+      },
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Header V2 must be exactly 149 bytes.",
+      "protocol_version": 2
+    },
+    {
+      "canonical_bytes_hex": "0202000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005814321ad489e630fef0350b1bff591d5cee8a821c00fa40a2cb2c99bd5b318680009265000000000000ffff0000000000000000000000000000000000000000000000000000000091a4000000000000ff",
+      "canonical_bytes_length": 150,
+      "description": "Header with trailing byte appended",
+      "expected_error": "header length not 149 bytes",
+      "expected_validity": false,
+      "height": 0,
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Canonical Header V2 must be exactly 149 bytes; trailing bytes rejected.",
+      "protocol_version": 2
+    }
+  ]
+}
