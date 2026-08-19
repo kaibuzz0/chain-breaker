@@ -21,9 +21,10 @@ def _make_governance_keys(count: int = 3, threshold: int = 2):
     return privs, pubs
 
 
-def _sign_body(privs, body: dict) -> list[dict]:
+def _sign_body(privs, body: dict, network_id: str | None = None) -> list[dict]:
+    # Sign with the network ID carried by the transaction body, not the module-level alpha constant.
     message = HashEngine.hash_object({
-        "network_id": NETWORK_ID,
+        "network_id": network_id if network_id is not None else body.get("network_id", NETWORK_ID),
         "version": 2,
         "type": "registry",
         "body_hash": HashEngine.hash_object_hex(body),
@@ -39,7 +40,7 @@ def _build_register_tx(privs, ledger, curator_id: str, public_key_hex: str, acti
         "public_key_hex": public_key_hex,
         "activation_height": activation_height,
         "previous_registry_root": root,
-        "network_id": NETWORK_ID,
+        "network_id": ledger.network_id,
         "schema_version": 1,
     }
     body["governance_signatures"] = _sign_body(privs, body)
@@ -118,7 +119,7 @@ def test_corrupted_governance_signature_rejected():
         "public_key_hex": encode_public_key(pk_a),
         "activation_height": 2,
         "previous_registry_root": registry_root(ledger.registry_state_at(0)),
-        "network_id": NETWORK_ID,
+        "network_id": ledger.network_id,
         "schema_version": 1,
     }
     body["governance_signatures"] = _sign_body(privs, body)
@@ -138,7 +139,7 @@ def test_corrupted_governance_field_rejected():
         "public_key_hex": encode_public_key(pk_a),
         "activation_height": 2,
         "previous_registry_root": registry_root(ledger.registry_state_at(0)),
-        "network_id": NETWORK_ID,
+        "network_id": ledger.network_id,
         "schema_version": 1,
     }
     body["governance_signatures"] = _sign_body(privs, body)
@@ -157,7 +158,7 @@ def test_missing_governance_field_rejected():
         "public_key_hex": encode_public_key(pk_a),
         "activation_height": 2,
         "previous_registry_root": registry_root(ledger.registry_state_at(0)),
-        "network_id": NETWORK_ID,
+        "network_id": ledger.network_id,
         "schema_version": 1,
     }
     # omit signatures
@@ -174,7 +175,7 @@ def test_invalid_public_key_in_governance_rejected():
         "public_key_hex": encode_public_key(generate_keypair()[1]),
         "activation_height": 2,
         "previous_registry_root": registry_root(ledger.registry_state_at(0)),
-        "network_id": NETWORK_ID,
+        "network_id": ledger.network_id,
         "schema_version": 1,
     }
     body["governance_signatures"] = _sign_body(privs, body)
