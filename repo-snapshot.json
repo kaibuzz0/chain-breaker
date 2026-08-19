@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-18T23:54:21Z",
-  "source_commit": "565426dddf85d7f59addf826431433492cccb84e",
+  "generated_at": "2026-08-19T00:31:53Z",
+  "source_commit": "18b83cf9bfa77e55a3d26ff91135a93ba8153964",
   "repo": {
     "id": "chain-breaker",
     "full_name": "kaibuzz0/chain-breaker",
@@ -9,14 +9,14 @@
     "default_branch": "main"
   },
   "stats": {
-    "tracked_files": 331,
+    "tracked_files": 343,
     "python_files": 157,
     "javascript_typescript_files": 0,
     "workflow_files": 7,
-    "test_files": 89
+    "test_files": 90
   },
   "repository_tree": {
-    "total_files": 331,
+    "total_files": 343,
     "total_directories": 33,
     "files_truncated": false,
     "directories_truncated": false,
@@ -184,7 +184,7 @@
         "path": "test-vectors",
         "name": "test-vectors",
         "depth": 1,
-        "file_count": 10
+        "file_count": 22
       },
       {
         "path": "tests",
@@ -1403,6 +1403,21 @@
         "extension": ".bin"
       },
       {
+        "path": "test-vectors/attestation-v2.json",
+        "name": "attestation-v2.json",
+        "extension": ".json"
+      },
+      {
+        "path": "test-vectors/block.json",
+        "name": "block.json",
+        "extension": ".json"
+      },
+      {
+        "path": "test-vectors/ed25519.json",
+        "name": "ed25519.json",
+        "extension": ".json"
+      },
+      {
         "path": "test-vectors/generate_network_identity_vectors.py",
         "name": "generate_network_identity_vectors.py",
         "extension": ".py"
@@ -1418,9 +1433,39 @@
         "extension": ".hash"
       },
       {
+        "path": "test-vectors/genesis.json",
+        "name": "genesis.json",
+        "extension": ".json"
+      },
+      {
+        "path": "test-vectors/governance-register.json",
+        "name": "governance-register.json",
+        "extension": ".json"
+      },
+      {
+        "path": "test-vectors/governance-rotate-revoke.json",
+        "name": "governance-rotate-revoke.json",
+        "extension": ".json"
+      },
+      {
         "path": "test-vectors/header-v2-genesis.bin",
         "name": "header-v2-genesis.bin",
         "extension": ".bin"
+      },
+      {
+        "path": "test-vectors/header-v2.json",
+        "name": "header-v2.json",
+        "extension": ".json"
+      },
+      {
+        "path": "test-vectors/merkle-extra.json",
+        "name": "merkle-extra.json",
+        "extension": ".json"
+      },
+      {
+        "path": "test-vectors/merkle.json",
+        "name": "merkle.json",
+        "extension": ".json"
       },
       {
         "path": "test-vectors/network-identities-test-genesis.bin",
@@ -1438,6 +1483,11 @@
         "extension": ".json"
       },
       {
+        "path": "test-vectors/pow-target.json",
+        "name": "pow-target.json",
+        "extension": ".json"
+      },
+      {
         "path": "test-vectors/registry-root.hash",
         "name": "registry-root.hash",
         "extension": ".hash"
@@ -1446,6 +1496,16 @@
         "path": "test-vectors/registry-state.bin",
         "name": "registry-state.bin",
         "extension": ".bin"
+      },
+      {
+        "path": "test-vectors/registry-state.json",
+        "name": "registry-state.json",
+        "extension": ".json"
+      },
+      {
+        "path": "test-vectors/sha256d.json",
+        "name": "sha256d.json",
+        "extension": ".json"
       },
       {
         "path": "test-vectors/validate_vectors.py",
@@ -1910,6 +1970,27 @@
   "agent_ops": {},
   "activity": [
     {
+      "id": "18b83cf9bfa77e55a3d26ff91135a93ba8153964",
+      "type": "commit",
+      "title": "Merge pull request #55 from kaibuzz0/task1-rust-verifier-production-repair",
+      "timestamp": "2026-08-18T19:31:46-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/18b83cf9bfa77e55a3d26ff91135a93ba8153964"
+    },
+    {
+      "id": "3cb08fbb8bb752a04343b084d7992a52660428e7",
+      "type": "commit",
+      "title": "chore(test-vectors): add missing frozen JSON vector files",
+      "timestamp": "2026-08-18T19:27:32-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/3cb08fbb8bb752a04343b084d7992a52660428e7"
+    },
+    {
+      "id": "74991a601128509f114ec4e5111c1c90736198ec",
+      "type": "commit",
+      "title": "fix(rust-verifier): resolve relative test-vectors path from cwd first",
+      "timestamp": "2026-08-18T19:19:41-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/74991a601128509f114ec4e5111c1c90736198ec"
+    },
+    {
       "id": "565426dddf85d7f59addf826431433492cccb84e",
       "type": "commit",
       "title": "Merge pull request #54 from kaibuzz0/task1-rust-verifier-production-repair",
@@ -1957,27 +2038,6 @@
       "title": "correct focused registry audit verification",
       "timestamp": "2026-08-16T11:06:25-05:00",
       "url": "https://github.com/kaibuzz0/chain-breaker/commit/ed378f2236dd6560e0d3f8d8db6de81549a8a841"
-    },
-    {
-      "id": "d29a0827ebbe3cc65630ecd9536b3ae7329194b7",
-      "type": "commit",
-      "title": "fix governance network identity propagation",
-      "timestamp": "2026-08-16T16:02:32Z",
-      "url": "https://github.com/kaibuzz0/chain-breaker/commit/d29a0827ebbe3cc65630ecd9536b3ae7329194b7"
-    },
-    {
-      "id": "6f3dc25f7a2a0b0efc32ec95e62b8fca931d496e",
-      "type": "commit",
-      "title": "add focused governance network identity repair",
-      "timestamp": "2026-08-16T11:02:13-05:00",
-      "url": "https://github.com/kaibuzz0/chain-breaker/commit/6f3dc25f7a2a0b0efc32ec95e62b8fca931d496e"
-    },
-    {
-      "id": "a3cd28de597aab55378f92d5a342a9e2968afe56",
-      "type": "commit",
-      "title": "add focused registry-state audit repair",
-      "timestamp": "2026-08-16T10:53:19-05:00",
-      "url": "https://github.com/kaibuzz0/chain-breaker/commit/a3cd28de597aab55378f92d5a342a9e2968afe56"
     }
   ],
   "links": [
