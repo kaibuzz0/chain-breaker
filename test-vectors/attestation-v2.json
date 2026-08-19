@@ -1,0 +1,109 @@
+{
+  "format_version": 1,
+  "vectors": [
+    {
+      "block_height": 2,
+      "curator_id": "alice",
+      "curator_public_key_hex": "50942026a24e71963de2213356e31e47c852166d39a39d952012be45c6a3fac4",
+      "description": "Valid historical attestation at block height 2",
+      "expected_signature_hex": "dc35fc3819b685f326bb5d8c36a7f9f272a7b0285ea415ee04f9b0fe55b4fd32dea694bff861d59f2271c55e869274174baa6a55ef2dca72ffd19d86f0ea180f",
+      "expected_validity": true,
+      "manifest_hash": "d8a17f1503bfdb6feb42dfaa2c5da2d2fea770ac28c5f685bb1105e5a75b2f43",
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Signature covers canonical JSON hash of preimage. Verified against registry state active at block height.",
+      "protocol_version": 2,
+      "signed_preimage": {
+        "block_height": 2,
+        "body_hash": "d8a17f1503bfdb6feb42dfaa2c5da2d2fea770ac28c5f685bb1105e5a75b2f43",
+        "curator_id": "alice",
+        "network_id": "chainbreaker-scripture-v2",
+        "type": "attestation",
+        "version": 2
+      }
+    },
+    {
+      "block_height": 2,
+      "curator_id": "bob",
+      "curator_public_key_hex": "50942026a24e71963de2213356e31e47c852166d39a39d952012be45c6a3fac4",
+      "description": "Attestation with mismatched curator_id in signature domain",
+      "expected_error": "signature verification failed",
+      "expected_signature_hex": "dc35fc3819b685f326bb5d8c36a7f9f272a7b0285ea415ee04f9b0fe55b4fd32dea694bff861d59f2271c55e869274174baa6a55ef2dca72ffd19d86f0ea180f",
+      "expected_validity": false,
+      "manifest_hash": "d8a17f1503bfdb6feb42dfaa2c5da2d2fea770ac28c5f685bb1105e5a75b2f43",
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Signature was made for curator_id 'alice'; claiming 'bob' must fail verification.",
+      "protocol_version": 2,
+      "signed_preimage": {
+        "block_height": 2,
+        "body_hash": "d8a17f1503bfdb6feb42dfaa2c5da2d2fea770ac28c5f685bb1105e5a75b2f43",
+        "curator_id": "alice",
+        "network_id": "chainbreaker-scripture-v2",
+        "type": "attestation",
+        "version": 2
+      }
+    },
+    {
+      "block_height": 5,
+      "curator_id": "alice",
+      "curator_public_key_hex": "084f24d960bab4e325842af036f60cec713074839bba3a81d1dc9fb484a8b27b",
+      "description": "Attestation signed at block height after curator revocation",
+      "expected_error": "key was not active at block height",
+      "expected_signature_hex": "216895d0c29be54beddf07ffa1ed721e8e350b35de60bcc74bed0527c4774d5ef48c0e32de6e2e2dd08826b0cdb9778cc9a8d15bb178669860160172a38d0e03",
+      "expected_validity": false,
+      "manifest_hash": "e59392c3e9490cc6def3da5b398ff1ae17bca9c241b57b89a1d7a721cb6435a8",
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Alice was revoked at height 4, so an attestation at height 5 using her old key must fail historical state validation.",
+      "protocol_version": 2,
+      "signed_preimage": {
+        "block_height": 5,
+        "body_hash": "e59392c3e9490cc6def3da5b398ff1ae17bca9c241b57b89a1d7a721cb6435a8",
+        "curator_id": "alice",
+        "network_id": "chainbreaker-scripture-v2",
+        "type": "attestation",
+        "version": 2
+      }
+    },
+    {
+      "block_height": 2,
+      "curator_id": "alice",
+      "curator_public_key_hex": "084f24d960bab4e325842af036f60cec713074839bba3a81d1dc9fb484a8b27b",
+      "description": "Attestation preimage with wrong network_id",
+      "expected_error": "signature verification failed",
+      "expected_signature_hex": "bc8b1f7fc24168b9fe85117633cd9452ce0c024e041a2a0c25fc98993ed01681d08ce2e8729c9dcb06d40553d2e50f22c253c9eab9c9992ba5c6c98c2e3c050f",
+      "expected_validity": false,
+      "manifest_hash": "480398073dbbb6850f6ac8a5dbe2e13d5b6fcb80d11665249bf2fde311eb4d10",
+      "network_id": "chainbreaker-evil",
+      "notes": "Signature was made for network_id chainbreaker-scripture-v2; claiming a different network_id must fail.",
+      "protocol_version": 2,
+      "signed_preimage": {
+        "block_height": 2,
+        "body_hash": "480398073dbbb6850f6ac8a5dbe2e13d5b6fcb80d11665249bf2fde311eb4d10",
+        "curator_id": "alice",
+        "network_id": "chainbreaker-evil",
+        "type": "attestation",
+        "version": 2
+      }
+    },
+    {
+      "block_height": 2,
+      "curator_id": "alice",
+      "curator_public_key_hex": "084f24d960bab4e325842af036f60cec713074839bba3a81d1dc9fb484a8b27b",
+      "description": "Attestation preimage with wrong protocol version",
+      "expected_error": "signature verification failed",
+      "expected_signature_hex": "bc8b1f7fc24168b9fe85117633cd9452ce0c024e041a2a0c25fc98993ed01681d08ce2e8729c9dcb06d40553d2e50f22c253c9eab9c9992ba5c6c98c2e3c050f",
+      "expected_validity": false,
+      "manifest_hash": "480398073dbbb6850f6ac8a5dbe2e13d5b6fcb80d11665249bf2fde311eb4d10",
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Signature was made for version 2; claiming version 99 must fail.",
+      "protocol_version": 99,
+      "signed_preimage": {
+        "block_height": 2,
+        "body_hash": "480398073dbbb6850f6ac8a5dbe2e13d5b6fcb80d11665249bf2fde311eb4d10",
+        "curator_id": "alice",
+        "network_id": "chainbreaker-scripture-v2",
+        "type": "attestation",
+        "version": 99
+      }
+    }
+  ]
+}

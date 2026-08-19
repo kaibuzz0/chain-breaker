@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "vectors": [
+    {
+      "action": "curator_register",
+      "body_hash": "71aef09105ca8bdfd0ad5d3ccaf9dfe2d52a48a1d7ade7d771cdf2090a5140ad",
+      "description": "Valid curator register governance transaction",
+      "expected_registry_root_after": "eabf417b06d01a4ca9aa722cc9f11b447693e6523ddbae6b5c56f4f9214c4453",
+      "expected_validity": true,
+      "governance_keys": [
+        "261c9a4b76dd6131634cac1023b6e8bd9253ec7a971437a2331dc937f4b31439",
+        "f29c2dd12a89911465064274068767cb5d33f060b84bd51fd5bc797857873a82"
+      ],
+      "input": {
+        "action": "curator_register",
+        "activation_height": 2,
+        "curator_id": "alice",
+        "governance_signatures": [
+          {
+            "key_index": 1,
+            "signature": "7adf90680f726d7464f9998367bc67bd128cc2fb2407abd243e38430ef9a2cd0db6668419806486f647179d7b5de47dc51f0ca7478a850782ab61871092e0705"
+          },
+          {
+            "key_index": 0,
+            "signature": "19fdaa7e8e214d93b43aafa27fda92b1785972baba51b7552262fefc4a9c2e7a173ce01ed3957656e926878eaf31c2b733498896e8c21e0bc6073a61c803670c"
+          }
+        ],
+        "network_id": "chainbreaker-scripture-v2",
+        "previous_registry_root": "b1de50826799b3f3076724d22d0ce0dd25c5a581b3f3dc69d810c23d1b7e40df",
+        "public_key_hex": "959d9ff6cf7f71285b79a789b2a6d4646d1a9a0512f71c33a3672ea8239d08c0",
+        "schema_version": 1
+      },
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Requires threshold valid Ed25519 governance signatures and matching previous_registry_root.",
+      "protocol_version": 2
+    },
+    {
+      "action": "curator_register",
+      "body_hash": "66239a1ac3790fd1e7d55ae7581e52e7c699f471bc290010ec397d3fad2380aa",
+      "description": "Register transaction with mismatched previous_registry_root",
+      "expected_error": "previous_registry_root does not match current state",
+      "expected_validity": false,
+      "governance_keys": [
+        "261c9a4b76dd6131634cac1023b6e8bd9253ec7a971437a2331dc937f4b31439",
+        "f29c2dd12a89911465064274068767cb5d33f060b84bd51fd5bc797857873a82"
+      ],
+      "input": {
+        "action": "curator_register",
+        "activation_height": 2,
+        "curator_id": "alice",
+        "governance_signatures": [
+          {
+            "key_index": 1,
+            "signature": "7adf90680f726d7464f9998367bc67bd128cc2fb2407abd243e38430ef9a2cd0db6668419806486f647179d7b5de47dc51f0ca7478a850782ab61871092e0705"
+          },
+          {
+            "key_index": 0,
+            "signature": "19fdaa7e8e214d93b43aafa27fda92b1785972baba51b7552262fefc4a9c2e7a173ce01ed3957656e926878eaf31c2b733498896e8c21e0bc6073a61c803670c"
+          }
+        ],
+        "network_id": "chainbreaker-scripture-v2",
+        "previous_registry_root": "1111111111111111111111111111111111111111111111111111111111111111",
+        "public_key_hex": "959d9ff6cf7f71285b79a789b2a6d4646d1a9a0512f71c33a3672ea8239d08c0",
+        "schema_version": 1
+      },
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Mismatched previous_registry_root must be rejected.",
+      "protocol_version": 2
+    }
+  ]
+}

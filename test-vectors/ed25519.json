@@ -1,0 +1,12 @@
+{
+  "algorithm": "Ed25519",
+  "description": "Ed25519 key generation, signing, and verification",
+  "expected_validity": true,
+  "message_hex": "436861696e2d427265616b65722074657374206d657373616765",
+  "notes": "Private key 32 bytes, public key 32 bytes, signature 64 bytes.",
+  "private_key_hex": "52068f4baac0cde8f5583376504d8e89a0a1ce3ef122b911864d125cb696f40d",
+  "private_key_purpose": "For reproducible test-vector validation only.",
+  "public_key_hex": "8610d592830560bf7891d8d165bd8a4790c7f75f1f1cf2679f9233b85b71e2eb",
+  "signature_hex": "2a1d7aa51f7b1147f570fa9cc64fb3562277a9994f59888c97c6fcd5564e46874561227153f1ea6be5ef8155fb813bd559cea02da2f28b0ba823ae9c56e9c50c",
+  "warning": "TEST VECTOR PRIVATE KEY \u2014 DETERMINISTIC AND PUBLIC \u2014 NEVER USE OPERATIONALLY"
+}

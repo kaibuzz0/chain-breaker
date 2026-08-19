@@ -1,0 +1,11 @@
+{
+  "description": "Canonical genesis block (height 0)",
+  "expected_header_bytes_hex": "0202000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005814321ad489e630fef0350b1bff591d5cee8a821c00fa40a2cb2c99bd5b318680009265000000000000ffff0000000000000000000000000000000000000000000000000000000091a4000000000000",
+  "expected_header_hash": "0000a6fd1e57aafd19da552440faa94803dbf1a1773bcd9af8ce3e0ae9fd13db",
+  "expected_registry_root": "5814321ad489e630fef0350b1bff591d5cee8a821c00fa40a2cb2c99bd5b3186",
+  "expected_validity": true,
+  "height": 0,
+  "network_id": "chainbreaker-scripture-v2",
+  "notes": "Genesis block is a protocol constant. Its header hash must satisfy MAX_TARGET PoW.",
+  "protocol_version": 2
+}

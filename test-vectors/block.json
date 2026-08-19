@@ -1,0 +1,21 @@
+{
+  "block_dict": {
+    "hash": "0000a6fd1e57aafd19da552440faa94803dbf1a1773bcd9af8ce3e0ae9fd13db",
+    "header": {
+      "merkle_root": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": 42129,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "registry_root": "5814321ad489e630fef0350b1bff591d5cee8a821c00fa40a2cb2c99bd5b3186",
+      "target": "0000ffff00000000000000000000000000000000000000000000000000000000",
+      "timestamp": 1704067200,
+      "version": 2
+    },
+    "transactions": []
+  },
+  "description": "Canonical block encoding (genesis block)",
+  "expected_header_hash": "0000a6fd1e57aafd19da552440faa94803dbf1a1773bcd9af8ce3e0ae9fd13db",
+  "height": 0,
+  "network_id": "chainbreaker-scripture-v2",
+  "notes": "Block contains canonical header and transaction list. Header bytes must match frozen V2 format.",
+  "protocol_version": 2
+}

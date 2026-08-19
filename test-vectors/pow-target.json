@@ -1,0 +1,23 @@
+{
+  "description": "Proof-of-work target interpretation",
+  "expected_validity": true,
+  "max_target_hex_be": "0000ffff00000000000000000000000000000000000000000000000000000000",
+  "max_target_hex_le": "00000000000000000000000000000000000000000000000000000000ffff0000",
+  "max_target_integer": 1766820104831717178943502833727831496196810259731196417549125097682370560,
+  "min_target_integer": 1,
+  "negative_vectors": [
+    {
+      "block_hash_hex": "0001000000000000000000000000000000000000000000000000000000000000",
+      "description": "PoW hash above MAX_TARGET must fail",
+      "expected_validity": false,
+      "network_id": "chainbreaker-scripture-v2",
+      "notes": "Hash interpreted as big-endian integer; this hash exceeds MAX_TARGET.",
+      "protocol_version": 2,
+      "target_hex": "0000ffff00000000000000000000000000000000000000000000000000000000",
+      "target_integer": 1766820104831717178943502833727831496196810259731196417549125097682370560
+    }
+  ],
+  "network_id": "chainbreaker-scripture-v2",
+  "notes": "Target is a 256-bit unsigned integer. Header hash interpreted as big-endian integer must be <= target.",
+  "protocol_version": 2
+}
