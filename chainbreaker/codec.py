@@ -485,8 +485,9 @@ def validate_v2_transaction(tx: dict[str, Any]) -> None:
     if not _is_hash(body["previous_registry_root"]):
         raise SchemaError("previous_registry_root must be a 64-char hex hash")
 
-    if body.get("network_id", "chainbreaker-scripture-v2") != "chainbreaker-scripture-v2":
-        raise SchemaError("unsupported network_id")
+    network_id = body.get("network_id")
+    if not isinstance(network_id, str) or not network_id:
+        raise SchemaError("network_id must be a non-empty string")
 
     if body.get("schema_version", 1) != 1:
         raise SchemaError("unsupported governance schema_version")
