@@ -4,8 +4,10 @@ import pytest
 from chainbreaker.codec import (
     BinaryCodec,
     CodecError,
+    SchemaError,
     validate_scripture_body,
     validate_transaction,
+    validate_v2_transaction,
 )
 
 
@@ -114,3 +116,61 @@ def test_validate_scripture_bad_hash():
     body["content_hash"] = "GGGG"
     with pytest.raises(ValueError):
         validate_scripture_body(body)
+
+
+# ---------------------------------------------------------------------------
+# V2 governance network_id structural validation
+# ---------------------------------------------------------------------------
+
+def _make_v2_governance_body(network_id: str | None = "chainbreaker-scripture-v2") -> dict:
+    """Return a structurally valid V2 governance body with mutable network_id."""
+    body = {
+        "action": "curator_register",
+        "curator_id": "alice",
+        "public_key_hex": "a" * 64,
+        "activation_height": 1,
+        "previous_registry_root": "b" * 64,
+        "schema_version": 1,
+        "governance_signatures": [{"key_index": 0, "signature": "c" * 128}],
+    }
+    if network_id is not None:
+        body["network_id"] = network_id
+    return body
+
+
+def test_validate_v2_transaction_accepts_alpha_network_id():
+    """Alpha network ID must still be structurally accepted."""
+    body = _make_v2_governance_body("chainbreaker-scripture-v2")
+    tx = {"type": "governance", "body": body}
+    validate_v2_transaction(tx)
+
+
+def test_validate_v2_transaction_accepts_non_alpha_network_id():
+    """A valid non-alpha network ID must be structurally accepted by the codec."""
+    body = _make_v2_governance_body("test-network-v1")
+    tx = {"type": "governance", "body": body}
+    validate_v2_transaction(tx)
+
+
+def test_validate_v2_transaction_rejects_empty_network_id():
+    """Empty string network_id must fail structural validation."""
+    body = _make_v2_governance_body("")
+    tx = {"type": "governance", "body": body}
+    with pytest.raises(SchemaError, match="network_id must be a non-empty string"):
+        validate_v2_transaction(tx)
+
+
+def test_validate_v2_transaction_rejects_non_string_network_id():
+    """Non-string network_id must fail structural validation."""
+    body = _make_v2_governance_body(12345)  # type: ignore[arg-type]
+    tx = {"type": "governance", "body": body}
+    with pytest.raises(SchemaError, match="network_id must be a non-empty string"):
+        validate_v2_transaction(tx)
+
+
+def test_validate_v2_transaction_rejects_missing_network_id():
+    """Missing network_id must fail structural validation (required_base)."""
+    body = _make_v2_governance_body(network_id=None)
+    tx = {"type": "governance", "body": body}
+    with pytest.raises(SchemaError, match="governance body missing required base fields"):
+        validate_v2_transaction(tx)
