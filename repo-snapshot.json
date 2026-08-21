@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-21T19:12:19Z",
-  "source_commit": "18d71233ba6ec81bee7d3af2ace254e62fa0802b",
+  "generated_at": "2026-08-21T19:38:46Z",
+  "source_commit": "3908189c45ffb6cea3962b4499c90ef2457c5531",
   "repo": {
     "id": "chain-breaker",
     "full_name": "kaibuzz0/chain-breaker",
@@ -1970,6 +1970,20 @@
   "agent_ops": {},
   "activity": [
     {
+      "id": "3908189c45ffb6cea3962b4499c90ef2457c5531",
+      "type": "commit",
+      "title": "Merge pull request #58 from kaibuzz0/task2c-stale-test-harness-network-id",
+      "timestamp": "2026-08-21T14:38:37-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/3908189c45ffb6cea3962b4499c90ef2457c5531"
+    },
+    {
+      "id": "a06b773b9e29e4132f4b0b1376bae3aeab319bf9",
+      "type": "commit",
+      "title": "test(harness): use ledger.network_id in fork and consensus validation tests",
+      "timestamp": "2026-08-21T14:38:14-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/a06b773b9e29e4132f4b0b1376bae3aeab319bf9"
+    },
+    {
       "id": "18d71233ba6ec81bee7d3af2ace254e62fa0802b",
       "type": "commit",
       "title": "Merge pull request #57 from kaibuzz0/task2b-v2-governance-schema-identity-agnostic",
@@ -2024,20 +2038,6 @@
       "title": "Merge pull request #54 from kaibuzz0/task1-rust-verifier-production-repair",
       "timestamp": "2026-08-18T18:54:12-05:00",
       "url": "https://github.com/kaibuzz0/chain-breaker/commit/565426dddf85d7f59addf826431433492cccb84e"
-    },
-    {
-      "id": "926aa2b29016c40d86ef3a9d3dc6d88228bef819",
-      "type": "commit",
-      "title": "fix(rust-verifier): repair compile errors, false-green summary, negative-vector handling",
-      "timestamp": "2026-08-18T18:50:08-05:00",
-      "url": "https://github.com/kaibuzz0/chain-breaker/commit/926aa2b29016c40d86ef3a9d3dc6d88228bef819"
-    },
-    {
-      "id": "bf17202ae0acf9c9e10fe54e5d48ed68c442d260",
-      "type": "commit",
-      "title": "Command site: enable repository Explorer snapshots",
-      "timestamp": "2026-08-16T19:18:58-05:00",
-      "url": "https://github.com/kaibuzz0/chain-breaker/commit/bf17202ae0acf9c9e10fe54e5d48ed68c442d260"
     }
   ],
   "links": [
