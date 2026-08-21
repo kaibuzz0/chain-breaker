@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-19T00:59:37Z",
-  "source_commit": "5e81559da73ec92a785b8e27689f66047aa60292",
+  "generated_at": "2026-08-21T19:12:19Z",
+  "source_commit": "18d71233ba6ec81bee7d3af2ace254e62fa0802b",
   "repo": {
     "id": "chain-breaker",
     "full_name": "kaibuzz0/chain-breaker",
@@ -1970,6 +1970,20 @@
   "agent_ops": {},
   "activity": [
     {
+      "id": "18d71233ba6ec81bee7d3af2ace254e62fa0802b",
+      "type": "commit",
+      "title": "Merge pull request #57 from kaibuzz0/task2b-v2-governance-schema-identity-agnostic",
+      "timestamp": "2026-08-21T14:12:06-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/18d71233ba6ec81bee7d3af2ace254e62fa0802b"
+    },
+    {
+      "id": "949f8c702311bd58ca003e02e8cf7b2c2d227819",
+      "type": "commit",
+      "title": "fix(codec): make V2 governance network_id validation identity-agnostic",
+      "timestamp": "2026-08-21T14:10:45-05:00",
+      "url": "https://github.com/kaibuzz0/chain-breaker/commit/949f8c702311bd58ca003e02e8cf7b2c2d227819"
+    },
+    {
       "id": "5e81559da73ec92a785b8e27689f66047aa60292",
       "type": "commit",
       "title": "Merge pull request #56 from kaibuzz0/task2a-adversarial-corruption-harness",
@@ -2024,20 +2038,6 @@
       "title": "Command site: enable repository Explorer snapshots",
       "timestamp": "2026-08-16T19:18:58-05:00",
       "url": "https://github.com/kaibuzz0/chain-breaker/commit/bf17202ae0acf9c9e10fe54e5d48ed68c442d260"
-    },
-    {
-      "id": "e71c1370d4509a5bfb064c99b0c5ae0d887f6ea7",
-      "type": "commit",
-      "title": "Connect repository to GitHub Command Site",
-      "timestamp": "2026-08-16T18:58:59-05:00",
-      "url": "https://github.com/kaibuzz0/chain-breaker/commit/e71c1370d4509a5bfb064c99b0c5ae0d887f6ea7"
-    },
-    {
-      "id": "74bf4cd16fe955278253b44e17df67d509192e80",
-      "type": "commit",
-      "title": "Merge pull request #51 from kaibuzz0/ci-detailed-test-diagnostics",
-      "timestamp": "2026-08-16T11:20:10-05:00",
-      "url": "https://github.com/kaibuzz0/chain-breaker/commit/74bf4cd16fe955278253b44e17df67d509192e80"
     }
   ],
   "links": [
