@@ -30,8 +30,10 @@ def _make_governance_keys(count: int = 3, threshold: int = 2):
 
 
 def _sign_body(privs, body: dict) -> list[dict]:
+    # Sign over the transaction body's actual network_id, which may be a derived
+    # test identity rather than the alpha constant.
     message = HashEngine.hash_object({
-        "network_id": NETWORK_ID,
+        "network_id": body.get("network_id", NETWORK_ID),
         "version": 2,
         "type": "registry",
         "body_hash": HashEngine.hash_object_hex(body),
@@ -47,7 +49,7 @@ def _build_register_tx(privs, ledger: Ledger, curator_id: str, public_key_hex: s
         "public_key_hex": public_key_hex,
         "activation_height": activation_height,
         "previous_registry_root": root,
-        "network_id": NETWORK_ID,
+        "network_id": ledger.network_id,
         "schema_version": 1,
     }
     body["governance_signatures"] = _sign_body(privs, body)

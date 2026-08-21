@@ -22,8 +22,9 @@ def _make_governance_keys(count: int = 3, threshold: int = 2):
 
 
 def _sign_body(privs, body: dict) -> list[dict]:
+    # Sign over the transaction body's actual network_id (alpha or derived test identity).
     message = HashEngine.hash_object({
-        "network_id": NETWORK_ID,
+        "network_id": body.get("network_id", NETWORK_ID),
         "version": 2,
         "type": "registry",
         "body_hash": HashEngine.hash_object_hex(body),
@@ -39,7 +40,7 @@ def _build_register_tx(privs, pubs, ledger, curator_id: str, public_key_hex: str
         "public_key_hex": public_key_hex,
         "activation_height": activation_height,
         "previous_registry_root": root,
-        "network_id": NETWORK_ID,
+        "network_id": ledger.network_id,
         "schema_version": 1,
     }
     body["governance_signatures"] = _sign_body(privs, body)
@@ -185,11 +186,11 @@ def test_invalid_governance_transition_fork_rejected():
         "public_key_hex": encode_public_key(pk_x),
         "activation_height": 3,
         "previous_registry_root": registry_root(ledger.registry_state_at(1)),
-        "network_id": NETWORK_ID,
+        "network_id": ledger.network_id,
         "schema_version": 1,
     }
     message = HashEngine.hash_object({
-        "network_id": NETWORK_ID,
+        "network_id": ledger.network_id,
         "version": 2,
         "type": "registry",
         "body_hash": HashEngine.hash_object_hex(body),
